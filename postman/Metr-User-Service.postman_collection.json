@@ -1,0 +1,624 @@
+{
+  "info": {
+    "_postman_id": "a7c4e2b1-6d8f-4c91-9e3a-metr-user-service",
+    "name": "Metr User Service",
+    "description": "Complete Postman collection for the Metr user-service HTTP API.\n\n**Base URL:** `{{baseUrl}}` (default `http://localhost:3000`)\n\n**OTP:** If Twilio env vars are empty, the 6-digit code is printed in the NestJS console. Copy it into `{{otpCode}}` (or the Verify OTP body) before verifying.\n\n**Happy path**\n1. Username Available\n2. Sign Up\n3. Copy OTP from server logs into `otpCode`\n4. Verify OTP (saves `accessToken`)\n5. Me / Logout / Delete Account\n\nPhone numbers must be E.164, e.g. `+96651234567`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "phone", "value": "+96651234567" },
+    { "key": "username", "value": "Murabaa-1837" },
+    { "key": "sessionId", "value": "" },
+    { "key": "otpCode", "value": "123456" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.response.code || pm.response.code >= 500) { return; }",
+          "let json;",
+          "try { json = pm.response.json(); } catch (e) { return; }",
+          "if (json && json.sessionId) {",
+          "  pm.collectionVariables.set('sessionId', json.sessionId);",
+          "}",
+          "if (json && json.accessToken) {",
+          "  pm.collectionVariables.set('accessToken', json.accessToken);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "Liveness. Returns `{ status, service, timestamp }`."
+          },
+          "response": [
+            {
+              "name": "OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/health"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"ok\",\n  \"service\": \"user-service\",\n  \"timestamp\": \"2026-09-19T14:00:00.000Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Username available",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/username/available?username={{username}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "username", "available"],
+              "query": [{ "key": "username", "value": "{{username}}" }]
+            },
+            "description": "Real-time uniqueness check. Username must be 3–20 characters: letters, numbers, `_`, `-`.\n\n`{ \"available\": true | false }`"
+          },
+          "response": [
+            {
+              "name": "Available",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/users/username/available?username=Murabaa-1837"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"available\": true\n}"
+            },
+            {
+              "name": "Taken",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/users/username/available?username=Murabaa-1837"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"available\": false\n}"
+            }
+          ]
+        },
+        {
+          "name": "Username invalid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/username/available?username=Mu",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "username", "available"],
+              "query": [{ "key": "username", "value": "Mu" }]
+            },
+            "description": "Too short / invalid characters → `USERNAME_INVALID`."
+          },
+          "response": [
+            {
+              "name": "Invalid",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/users/username/available?username=Mu"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"USERNAME_INVALID\",\n  \"message\": \"Username must be 3-20 characters: letters, numbers, underscores, or hyphens.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sign up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Signup started', function () {",
+                  "  pm.expect(pm.response.code).to.eql(201);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.sessionId).to.be.a('string');",
+                  "  pm.expect(json.expiresAt).to.be.a('string');",
+                  "  pm.expect(json.attemptsRemaining).to.eql(3);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"username\": \"{{username}}\",\n  \"acceptedTerms\": true\n}"
+            },
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "Start sign-up and send OTP.\n\n- `username` is optional. If omitted, the server generates one (`user-1234`).\n- `acceptedTerms` must be `true`.\n- `phone` must not already be registered.\n\nSaves `sessionId` on the collection. Copy the OTP from the server console into `otpCode`."
+          },
+          "response": [
+            {
+              "name": "OTP sent",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"+96651234567\",\n  \"username\": \"Murabaa-1837\",\n  \"acceptedTerms\": true\n}"
+                },
+                "url": "{{baseUrl}}/auth/signup"
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"sessionId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"expiresAt\": \"2026-09-19T14:02:00.000Z\",\n  \"resendAvailableAt\": \"2026-09-19T14:00:30.000Z\",\n  \"attemptsRemaining\": 3\n}"
+            }
+          ]
+        },
+        {
+          "name": "Sign up (auto username)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"acceptedTerms\": true\n}"
+            },
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "Same as sign up, but the server generates a unique username."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login OTP started', function () {",
+                  "  pm.expect(pm.response.code).to.eql(201);",
+                  "  pm.expect(pm.response.json().sessionId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Start login OTP for an existing account. Unknown phone → `PHONE_NOT_REGISTERED`."
+          },
+          "response": [
+            {
+              "name": "OTP sent",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"+96651234567\"\n}"
+                },
+                "url": "{{baseUrl}}/auth/login"
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"sessionId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"expiresAt\": \"2026-09-19T14:02:00.000Z\",\n  \"resendAvailableAt\": \"2026-09-19T14:00:30.000Z\",\n  \"attemptsRemaining\": 3\n}"
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Verified and token issued', function () {",
+                  "  pm.expect(pm.response.code).to.eql(201);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.accessToken).to.be.a('string');",
+                  "  pm.expect(json.user).to.have.keys('id', 'username', 'phone');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/otp/verify",
+            "description": "Verify the 6-digit OTP.\n\nOn success: creates the user (signup) or logs in, returns JWT + user, and saves `accessToken`.\n\nOTP is valid for **2 minutes**, **3 attempts**, then **15 minute** lockout."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sessionId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"code\": \"123456\"\n}"
+                },
+                "url": "{{baseUrl}}/auth/otp/verify"
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\",\n  \"user\": {\n    \"id\": \"8f14e45f-ea8d-4c3b-9c1a-2b7e0d1a9c11\",\n    \"username\": \"Murabaa-1837\",\n    \"phone\": \"+96651234567\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/otp/resend",
+            "description": "Send a new OTP.\n\n- Cooldown: **30 seconds** (`OTP_RESEND_COOLDOWN`)\n- Max **3** resends per session (`OTP_RESEND_LIMIT`)\n- Blocked during lockout (`OTP_LOCKED`)"
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Current user. Requires `Authorization: Bearer {{accessToken}}`."
+          },
+          "response": [
+            {
+              "name": "OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": "{{baseUrl}}/auth/me"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": \"8f14e45f-ea8d-4c3b-9c1a-2b7e0d1a9c11\",\n  \"username\": \"Murabaa-1837\",\n  \"phone\": \"+96651234567\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "Invalidates the current JWT (`tokenVersion` bump). The same token will then get `401`."
+          },
+          "response": [
+            {
+              "name": "OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": "{{baseUrl}}/auth/logout"
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"ok\": true\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete account",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/auth/account",
+            "description": "Permanently deletes the authenticated user and their OTP sessions. App Store account-deletion requirement."
+          },
+          "response": [
+            {
+              "name": "OK",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": "{{baseUrl}}/auth/account"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"ok\": true\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error cases",
+      "item": [
+        {
+          "name": "Sign up — phone already registered",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"username\": \"OtherUser-1\",\n  \"acceptedTerms\": true\n}"
+            },
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "`409 PHONE_ALREADY_REGISTERED` — maps to the “This account is already registered / Log in instead” screen."
+          },
+          "response": [
+            {
+              "name": "Already registered",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{baseUrl}}/auth/signup"
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"PHONE_ALREADY_REGISTERED\",\n  \"message\": \"This account is already registered.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Sign up — terms not accepted",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"username\": \"{{username}}\",\n  \"acceptedTerms\": false\n}"
+            },
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "`400 TERMS_REQUIRED`"
+          },
+          "response": [
+            {
+              "name": "Terms required",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{baseUrl}}/auth/signup"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"TERMS_REQUIRED\",\n  \"message\": \"You must accept the terms and policies.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Sign up — username taken",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+966500000001\",\n  \"username\": \"{{username}}\",\n  \"acceptedTerms\": true\n}"
+            },
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "`409 USERNAME_TAKEN` when the username already exists (use a new phone so the request gets past the phone check)."
+          },
+          "response": [
+            {
+              "name": "Username taken",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{baseUrl}}/auth/signup"
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"USERNAME_TAKEN\",\n  \"message\": \"This username is already taken.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login — phone not registered",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+966500000099\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "`404 PHONE_NOT_REGISTERED` — maps to the “This account is not previously registered” screen."
+          },
+          "response": [
+            {
+              "name": "Not registered",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{baseUrl}}/auth/login"
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"PHONE_NOT_REGISTERED\",\n  \"message\": \"This account is not previously registered.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP — incorrect code",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"code\": \"000000\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/otp/verify",
+            "description": "`400 OTP_INVALID` with `attemptsRemaining`. After 3 failures → `429 OTP_LOCKED` with `lockedUntil` (15 minutes)."
+          },
+          "response": [
+            {
+              "name": "Incorrect code",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{baseUrl}}/auth/otp/verify"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"OTP_INVALID\",\n  \"message\": \"Incorrect code. Please check the digits and try again.\",\n  \"attemptsRemaining\": 2\n}"
+            },
+            {
+              "name": "Temporarily locked",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{baseUrl}}/auth/otp/verify"
+              },
+              "status": "Too Many Requests",
+              "code": 429,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"OTP_LOCKED\",\n  \"message\": \"Too many attempts. Try again later.\",\n  \"lockedUntil\": \"2026-09-19T14:15:00.000Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP — expired code",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/otp/verify",
+            "description": "Wait more than 2 minutes after send, then verify. `400 OTP_EXPIRED`."
+          },
+          "response": [
+            {
+              "name": "Expired",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{baseUrl}}/auth/otp/verify"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"OTP_EXPIRED\",\n  \"message\": \"The code has expired.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Resend OTP — cooldown",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/otp/resend",
+            "description": "Call immediately after signup/login. `429 OTP_RESEND_COOLDOWN` with `resendAvailableAt`."
+          },
+          "response": [
+            {
+              "name": "Cooldown",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{baseUrl}}/auth/otp/resend"
+              },
+              "status": "Too Many Requests",
+              "code": 429,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"OTP_RESEND_COOLDOWN\",\n  \"message\": \"Please wait before requesting a new code.\",\n  \"resendAvailableAt\": \"2026-09-19T14:00:30.000Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Me — missing token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "`401 Unauthorized` when the Bearer token is missing or invalid."
+          }
+        }
+      ]
+    }
+  ]
+}
