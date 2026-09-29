@@ -1,0 +1,86 @@
+{
+  "USERNAME_INVALID": {
+    "en": "Username must be 3-20 characters: letters, numbers, underscores, or hyphens.",
+    "ar": "يجب أن يتكون اسم المستخدم من 3 إلى 20 حرفاً: أحرف وأرقام وشرطة سفلية أو شرطة فقط."
+  },
+  "USERNAME_TAKEN": {
+    "en": "This username is already taken.",
+    "ar": "اسم المستخدم مستخدم بالفعل."
+  },
+  "PHONE_INVALID": {
+    "en": "Phone number must be in E.164 format.",
+    "ar": "يجب أن يكون رقم الجوال بتنسيق E.164."
+  },
+  "PHONE_NOT_REGISTERED": {
+    "en": "This account is not previously registered.",
+    "ar": "هذا الحساب غير مسجّل مسبقاً."
+  },
+  "PHONE_ALREADY_REGISTERED": {
+    "en": "This account is already registered.",
+    "ar": "هذا الحساب مسجّل بالفعل."
+  },
+  "TERMS_REQUIRED": {
+    "en": "You must accept the terms and policies.",
+    "ar": "يجب الموافقة على الشروط والسياسات."
+  },
+  "SESSION_NOT_FOUND": {
+    "en": "Verification session was not found.",
+    "ar": "لم يتم العثور على جلسة التحقق."
+  },
+  "OTP_INVALID": {
+    "en": "Incorrect code. Please check the digits and try again.",
+    "ar": "رمز التحقق غير صحيح. يرجى مراجعة الأرقام والمحاولة مرة أخرى."
+  },
+  "OTP_EXPIRED": {
+    "en": "The code has expired.",
+    "ar": "انتهت صلاحية رمز التحقق."
+  },
+  "OTP_LOCKED": {
+    "en": "Too many attempts. Try again in 5 minutes.",
+    "ar": "محاولات كثيرة جداً. حاول مرة أخرى خلال 5 دقائق."
+  },
+  "OTP_RESEND_COOLDOWN": {
+    "en": "Please wait before requesting a new code.",
+    "ar": "يرجى الانتظار قبل طلب رمز جديد."
+  },
+  "OTP_RESEND_LIMIT": {
+    "en": "No more resend attempts are allowed for this session.",
+    "ar": "لا يمكن إعادة إرسال الرمز مرة أخرى لهذه الجلسة."
+  },
+  "PHOTO_REQUIRED": {
+    "en": "Choose a profile photo to upload.",
+    "ar": "اختر صورة للملف الشخصي للرفع."
+  },
+  "PHOTO_INVALID": {
+    "en": "Photo must be a JPEG, PNG, or WebP image.",
+    "ar": "يجب أن تكون الصورة بصيغة JPEG أو PNG أو WebP."
+  },
+  "PHOTO_TOO_LARGE": {
+    "en": "Photo must be 5 MB or smaller.",
+    "ar": "يجب ألا يتجاوز حجم الصورة 5 ميغابايت."
+  },
+  "DISPLAY_NAME_INVALID": {
+    "en": "Display name must be 1–80 characters.",
+    "ar": "يجب أن يكون الاسم الظاهر من 1 إلى 80 حرفاً."
+  },
+  "CITY_INVALID": {
+    "en": "City must be 1–80 characters.",
+    "ar": "يجب أن تكون المدينة من 1 إلى 80 حرفاً."
+  },
+  "BIO_INVALID": {
+    "en": "Bio must be 500 characters or fewer.",
+    "ar": "يجب ألا تتجاوز النبذة 500 حرف."
+  },
+  "USER_NOT_FOUND": {
+    "en": "This user was not found.",
+    "ar": "لم يتم العثور على هذا المستخدم."
+  },
+  "FOLLOW_SELF": {
+    "en": "You cannot follow yourself.",
+    "ar": "لا يمكنك متابعة نفسك."
+  },
+  "FOLLOW_NOT_ALLOWED": {
+    "en": "You can only follow advertisers.",
+    "ar": "يمكنك متابعة المعلنين فقط."
+  }
+}

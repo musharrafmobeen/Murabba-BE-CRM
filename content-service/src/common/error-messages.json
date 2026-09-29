@@ -1,0 +1,58 @@
+{
+  "CONTACT_PHONE_OR_EMAIL_REQUIRED": {
+    "en": "Enter a mobile number or an email address.",
+    "ar": "أدخل رقم جوال أو بريداً إلكترونياً."
+  },
+  "PHONE_INVALID": {
+    "en": "Phone number must be in E.164 format.",
+    "ar": "يجب أن يكون رقم الجوال بتنسيق E.164."
+  },
+  "EMAIL_INVALID": {
+    "en": "Enter a valid email address.",
+    "ar": "أدخل بريداً إلكترونياً صالحاً."
+  },
+  "TITLE_INVALID": {
+    "en": "Title must be 3–120 characters.",
+    "ar": "يجب أن يكون العنوان من 3 إلى 120 حرفاً."
+  },
+  "CONTACT_TYPE_INVALID": {
+    "en": "Select a valid request type.",
+    "ar": "اختر نوع طلب صالح."
+  },
+  "MESSAGE_TOO_SHORT": {
+    "en": "Message must be at least 20 characters.",
+    "ar": "يجب أن تتكون الرسالة من 20 حرفاً على الأقل."
+  },
+  "MESSAGE_TOO_LONG": {
+    "en": "Message must be 256 characters or fewer.",
+    "ar": "يجب ألا تتجاوز الرسالة 256 حرفاً."
+  },
+  "PRIVACY_REQUIRED": {
+    "en": "You must accept the privacy policy to submit.",
+    "ar": "يجب الموافقة على سياسة الخصوصية للإرسال."
+  },
+  "CONTACT_RATE_LIMITED": {
+    "en": "Too many submissions. Please try again later.",
+    "ar": "محاولات إرسال كثيرة. يرجى المحاولة لاحقاً."
+  },
+  "CONTACT_RECEIVED": {
+    "en": "Thank you. Your message has been received.",
+    "ar": "شكراً لك. تم استلام رسالتك."
+  },
+  "CONTACT_RECEIVED_FOLLOW_UP": {
+    "en": "Our support team will get back to you soon, if needed.",
+    "ar": "سيتواصل معك فريق الدعم قريباً إذا لزم الأمر."
+  },
+  "ADMIN_UNAUTHORIZED": {
+    "en": "Admin access is required.",
+    "ar": "يلزم صلاحية المشرف."
+  },
+  "CONTENT_NOT_FOUND": {
+    "en": "The requested content was not found.",
+    "ar": "المحتوى المطلوب غير موجود."
+  },
+  "CONTENT_CONFLICT": {
+    "en": "A record with this code already exists.",
+    "ar": "يوجد سجل بهذا الرمز مسبقاً."
+  }
+}

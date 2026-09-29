@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Metr User Service — Frontend Integration Guide</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font-family: Segoe UI, Calibri, Arial, sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.45; }
+  h1 { font-size: 22pt; border-bottom: 2px solid #0f3d4c; padding-bottom: 8px; color: #0f3d4c; }
+  h2 { font-size: 15pt; color: #0f3d4c; margin-top: 28px; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; color: #163e4a; page-break-after: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 18px; font-size: 10pt; }
+  th, td { border: 1px solid #c9d4d8; padding: 6px 8px; vertical-align: top; }
+  th { background: #0f3d4c; color: #fff; text-align: left; }
+  tr:nth-child(even) td { background: #f4f8f9; }
+  code { font-family: Consolas, monospace; font-size: 9.5pt; background: #eef3f4; padding: 1px 4px; border-radius: 3px; }
+  pre { background: #0f3d4c; color: #e8f1f3; padding: 12px 14px; overflow-x: auto; font-size: 9pt; border-radius: 6px; page-break-inside: avoid; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  hr { border: none; border-top: 1px solid #c9d4d8; margin: 24px 0; }
+</style>
+</head>
+<body>
+<h1>Metr User Service — Frontend Integration Guide</h1>
+<p><strong>Audience:</strong> Mobile/web frontend engineers and coding agents implementing Sign In, Sign Up, OTP, session, and account deletion.</p>
+<p><strong>Service:</strong> NestJS HTTP API (<code>user-service</code>)<br />
+<strong>Base URL (local):</strong> <code>http://localhost:3000</code><br />
+<strong>Content-Type:</strong> <code>application/json</code><br />
+<strong>Document version:</strong> 1.0<br />
+<strong>Date:</strong> 19 September 2026</p>
+<p>This document is the contract. Integrate <strong>only</strong> these routes. Map UI copy to the <code>error</code> field (stable codes), not to HTTP status alone.</p>
+<hr />
+<h2>1. How to use this document (for AI agents)</h2>
+<ol>
+<li>Treat this file as the source of truth for auth/user HTTP APIs.</li>
+<li>Never invent extra endpoints, query params, or body fields. Unknown JSON keys are rejected (<code>forbidNonWhitelisted</code>).</li>
+<li>Drive UI from <code>error</code> codes in the JSON body (e.g. <code>OTP_INVALID</code>, <code>PHONE_NOT_REGISTERED</code>).</li>
+<li>Persist <code>sessionId</code> between OTP screens. Persist <code>accessToken</code> after verify. Send the token as <code>Authorization: Bearer &lt;accessToken&gt;</code>.</li>
+<li>The user account is <strong>not</strong> created at signup start. It is created only after a successful <code>POST /auth/otp/verify</code> for a signup session.</li>
+</ol>
+<hr />
+<h2>2. Product flows (what the app must do)</h2>
+<h3>2.1 Sign up</h3>
+<ol>
+<li>Optional: debounce <code>GET /users/username/available?username=</code> while the user types.</li>
+<li>User submits username (required), phone (E.164), and accepts terms.</li>
+<li><code>POST /auth/signup</code> → OTP is sent. Save <code>sessionId</code>, <code>expiresAt</code>, <code>resendAvailableAt</code>, <code>attemptsRemaining</code>.</li>
+<li>OTP screen: 6 digit boxes. Enable Verify only when all 6 digits are entered.</li>
+<li><code>POST /auth/otp/verify</code> with <code>sessionId</code> + <code>code</code>.</li>
+<li>Success → store <code>accessToken</code> + <code>user</code> → home (“Successful Sign up”).</li>
+<li>Errors map to Figma states (incorrect, expired, locked, resend). See §7.</li>
+</ol>
+<p>Username is required, must be unique, and must match the rules in §3.1.</p>
+<h3>2.2 Sign in</h3>
+<ol>
+<li>User enters phone → <code>POST /auth/login</code>.</li>
+<li>Unknown phone → <code>PHONE_NOT_REGISTERED</code> → “This account is not previously registered” / go to Create Account.</li>
+<li>Known phone → same OTP screen as signup (same verify/resend APIs).</li>
+<li>Success → store token → home (“Logged in successfully”).</li>
+</ol>
+<h3>2.3 Phone already registered (from signup)</h3>
+<p><code>POST /auth/signup</code> with an existing phone → <code>PHONE_ALREADY_REGISTERED</code> → “This account is already registered” / Log in instead.</p>
+<h3>2.4 Log out</h3>
+<p>Confirm in UI, then <code>POST /auth/logout</code> with Bearer token. Discard the token locally. That token will return <code>401</code> afterward.</p>
+<h3>2.5 Delete account (App Store)</h3>
+<p><code>DELETE /auth/account</code> with Bearer token. User and OTP sessions are removed. Subsequent login with that phone is <code>PHONE_NOT_REGISTERED</code>.</p>
+<hr />
+<h2>3. Conventions</h2>
+<h3>3.1 Phone</h3>
+<ul>
+<li>Format: <strong>E.164</strong>, <code>+</code> then country code then subscriber number.</li>
+<li>Pattern: <code>^\+[1-9]\d{7,14}$</code></li>
+<li>Examples: <code>+96651234567</code>, <code>+923309890496</code></li>
+<li>Spaces are stripped server-side. Do not send dashes or <code>00</code> prefixes.</li>
+<li>One phone = one account.</li>
+</ul>
+<h3>3.2 Username</h3>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Length</td>
+<td>3–20</td>
+</tr>
+<tr>
+<td>Allowed</td>
+<td>letters, numbers, <code>_</code>, <code>-</code></td>
+</tr>
+<tr>
+<td>Pattern</td>
+<td><code>^[A-Za-z0-9_-]+$</code></td>
+</tr>
+<tr>
+<td>Unique</td>
+<td>Case-insensitive check</td>
+</tr>
+<tr>
+<td>Required on signup</td>
+<td>Must be provided by the client</td>
+</tr>
+</tbody>
+</table>
+<h3>3.3 OTP</h3>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Length</td>
+<td>6 digits (<code>/^\d{6}$/</code>)</td>
+</tr>
+<tr>
+<td>Lifetime</td>
+<td><strong>2 minutes</strong> (<code>expiresAt</code>)</td>
+</tr>
+<tr>
+<td>Verify attempts</td>
+<td><strong>3</strong> then lockout</td>
+</tr>
+<tr>
+<td>Lockout</td>
+<td><strong>5 minutes</strong> (<code>lockedUntil</code>), <strong>per phone</strong> (cannot bypass by starting a new login/signup)</td>
+</tr>
+<tr>
+<td>Resend cooldown</td>
+<td><strong>30 seconds</strong> (<code>resendAvailableAt</code>)</td>
+</tr>
+<tr>
+<td>Max resends</td>
+<td><strong>3</strong> per OTP session</td>
+</tr>
+</tbody>
+</table>
+<p>After lockout expires, resend is allowed again and attempts reset.</p>
+<h3>3.4 Auth header</h3>
+<pre><code>Authorization: Bearer &lt;accessToken&gt;
+</code></pre>
+<p>JWT lifetime: <strong>7 days</strong>. Logout increments <code>tokenVersion</code>; old tokens become <code>401</code>.</p>
+<h3>3.5 HTTP status (Nest defaults)</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Typical success</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td>200</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>201</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td>200</td>
+</tr>
+</tbody>
+</table>
+<p>Do not rely on 201 vs 200 for business logic. Rely on JSON body + <code>error</code> codes.</p>
+<h3>3.6 Validation failures (class-validator)</h3>
+<p>If the body/query fails DTO validation (wrong types, extra fields, bad UUID, phone not E.164):</p>
+<pre><code class="language-json">{
+  &quot;message&quot;: [&quot;phone must be in E.164 format&quot;],
+  &quot;error&quot;: &quot;Bad Request&quot;,
+  &quot;statusCode&quot;: 400
+}
+</code></pre>
+<p><code>message</code> may be a string or an array of strings. This is <strong>not</strong> an <code>error</code> code like <code>OTP_INVALID</code>.</p>
+<h3>3.7 Business errors (use these in the UI)</h3>
+<pre><code class="language-json">{
+  &quot;error&quot;: &quot;OTP_INVALID&quot;,
+  &quot;message&quot;: {
+    &quot;en&quot;: &quot;Incorrect code. Please check the digits and try again.&quot;,
+    &quot;ar&quot;: &quot;رمز التحقق غير صحيح. يرجى مراجعة الأرقام والمحاولة مرة أخرى.&quot;
+  },
+  &quot;attemptsRemaining&quot;: 2
+}
+</code></pre>
+<p>Always read <code>error</code> (string code). Show <code>message.en</code> or <code>message.ar</code> from the locale. Extra fields may include <code>attemptsRemaining</code>, <code>lockedUntil</code>, <code>resendAvailableAt</code> (ISO-8601).</p>
+<h3>3.8 Unauthorized</h3>
+<p>Missing/invalid/logged-out token:</p>
+<pre><code class="language-json">{
+  &quot;message&quot;: &quot;Unauthorized&quot;,
+  &quot;statusCode&quot;: 401
+}
+</code></pre>
+<hr />
+<h2>4. Route index</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Auth</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/health</code></td>
+<td>No</td>
+<td>Liveness</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/users/username/available</code></td>
+<td>No</td>
+<td>Username uniqueness</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/auth/signup</code></td>
+<td>No</td>
+<td>Start signup OTP</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/auth/login</code></td>
+<td>No</td>
+<td>Start login OTP</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/auth/otp/verify</code></td>
+<td>No</td>
+<td>Verify OTP; create/login user; return JWT</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/auth/otp/resend</code></td>
+<td>No</td>
+<td>New OTP for the same session</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/auth/me</code></td>
+<td>Bearer</td>
+<td>Current user</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/auth/logout</code></td>
+<td>Bearer</td>
+<td>Invalidate JWT</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/auth/account</code></td>
+<td>Bearer</td>
+<td>Delete account</td>
+</tr>
+</tbody>
+</table>
+<p>There is <strong>no</strong> TCP/microservice API. HTTP only.</p>
+<hr />
+<h2>5. Endpoints in detail</h2>
+<h3>5.1 <code>GET /health</code></h3>
+<p><strong>Auth:</strong> none  </p>
+<p><strong>Success 200</strong></p>
+<pre><code class="language-json">{
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;service&quot;: &quot;user-service&quot;,
+  &quot;timestamp&quot;: &quot;2026-09-19T17:00:00.000Z&quot;
+}
+</code></pre>
+<hr />
+<h3>5.2 <code>GET /users/username/available</code></h3>
+<p><strong>Auth:</strong> none<br />
+<strong>Query</strong></p>
+<table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Required</th>
+<th>Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>username</code></td>
+<td>yes</td>
+<td>3–20, <code>[A-Za-z0-9_-]+</code></td>
+</tr>
+</tbody>
+</table>
+<p>Example: <code>/users/username/available?username=Murabaa-1837</code></p>
+<p><strong>Success 200</strong></p>
+<pre><code class="language-json">{ &quot;available&quot;: true }
+</code></pre>
+<pre><code class="language-json">{ &quot;available&quot;: false }
+</code></pre>
+<p><strong>Errors</strong></p>
+<table>
+<thead>
+<tr>
+<th>HTTP</th>
+<th><code>error</code></th>
+<th>When</th>
+<th>UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>400</td>
+<td><code>USERNAME_INVALID</code></td>
+<td>Too short/long or illegal characters</td>
+<td>Inline username validation (red rules)</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<pre><code class="language-json">{
+  &quot;error&quot;: &quot;USERNAME_INVALID&quot;,
+  &quot;message&quot;: {
+    &quot;en&quot;: &quot;Username must be 3-20 characters: letters, numbers, underscores, or hyphens.&quot;,
+    &quot;ar&quot;: &quot;يجب أن يتكون اسم المستخدم من 3 إلى 20 حرفاً: أحرف وأرقام وشرطة سفلية أو شرطة فقط.&quot;
+  }
+}
+</code></pre>
+<p>Call this while typing (debounced). Do not block the keyboard on network; show loading on the field.</p>
+<hr />
+<h3>5.3 <code>POST /auth/signup</code></h3>
+<p><strong>Auth:</strong> none  </p>
+<p><strong>Body</strong></p>
+<pre><code class="language-json">{
+  &quot;phone&quot;: &quot;+96651234567&quot;,
+  &quot;username&quot;: &quot;Murabaa-1837&quot;,
+  &quot;acceptedTerms&quot;: true
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>phone</code></td>
+<td>string</td>
+<td>yes</td>
+<td>E.164</td>
+</tr>
+<tr>
+<td><code>username</code></td>
+<td>string</td>
+<td>yes</td>
+<td>3–20, <code>[A-Za-z0-9_-]+</code>, unique</td>
+</tr>
+<tr>
+<td><code>acceptedTerms</code></td>
+<td>boolean</td>
+<td>yes</td>
+<td>Must be <code>true</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Success 201</strong> — OTP session started (user <strong>not</strong> created yet)</p>
+<pre><code class="language-json">{
+  &quot;sessionId&quot;: &quot;a44feb09-4afd-48d6-9300-b465acc18b1c&quot;,
+  &quot;expiresAt&quot;: &quot;2026-09-19T17:14:15.056Z&quot;,
+  &quot;resendAvailableAt&quot;: &quot;2026-09-19T17:12:45.056Z&quot;,
+  &quot;attemptsRemaining&quot;: 3
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sessionId</code></td>
+<td>UUID. Required for verify and resend</td>
+</tr>
+<tr>
+<td><code>expiresAt</code></td>
+<td>ISO time when this OTP dies (2 min)</td>
+</tr>
+<tr>
+<td><code>resendAvailableAt</code></td>
+<td>ISO time when Resend may be enabled (30s)</td>
+</tr>
+<tr>
+<td><code>attemptsRemaining</code></td>
+<td>Verify tries left (starts at 3)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Errors</strong></p>
+<table>
+<thead>
+<tr>
+<th>HTTP</th>
+<th><code>error</code></th>
+<th>UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>400</td>
+<td><code>TERMS_REQUIRED</code></td>
+<td>Terms checkbox</td>
+</tr>
+<tr>
+<td>400</td>
+<td><code>USERNAME_INVALID</code></td>
+<td>Username rules</td>
+</tr>
+<tr>
+<td>409</td>
+<td><code>USERNAME_TAKEN</code></td>
+<td>Username already used</td>
+</tr>
+<tr>
+<td>409</td>
+<td><code>PHONE_ALREADY_REGISTERED</code></td>
+<td>“This account is already registered” → Log in</td>
+</tr>
+<tr>
+<td>429</td>
+<td><code>OTP_LOCKED</code></td>
+<td>Phone is in 5-min lockout (<code>lockedUntil</code>)</td>
+</tr>
+<tr>
+<td>400</td>
+<td>validation</td>
+<td>Bad phone / extra fields</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3>5.4 <code>POST /auth/login</code></h3>
+<p><strong>Auth:</strong> none  </p>
+<p><strong>Body</strong></p>
+<pre><code class="language-json">{
+  &quot;phone&quot;: &quot;+96651234567&quot;
+}
+</code></pre>
+<p><strong>Success 201</strong> — same shape as signup OTP session (<code>sessionId</code>, <code>expiresAt</code>, <code>resendAvailableAt</code>, <code>attemptsRemaining</code>).</p>
+<p><strong>Errors</strong></p>
+<table>
+<thead>
+<tr>
+<th>HTTP</th>
+<th><code>error</code></th>
+<th>UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>404</td>
+<td><code>PHONE_NOT_REGISTERED</code></td>
+<td>“This account is not previously registered” → Sign up</td>
+</tr>
+<tr>
+<td>429</td>
+<td><code>OTP_LOCKED</code></td>
+<td>Temporarily locked (<code>lockedUntil</code>)</td>
+</tr>
+<tr>
+<td>400</td>
+<td>validation</td>
+<td>Bad phone</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3>5.5 <code>POST /auth/otp/verify</code></h3>
+<p><strong>Auth:</strong> none  </p>
+<p><strong>Body</strong></p>
+<pre><code class="language-json">{
+  &quot;sessionId&quot;: &quot;a44feb09-4afd-48d6-9300-b465acc18b1c&quot;,
+  &quot;code&quot;: &quot;955641&quot;
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sessionId</code></td>
+<td>UUID from signup/login/resend</td>
+</tr>
+<tr>
+<td><code>code</code></td>
+<td>exactly 6 digits, string</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Success 201</strong> — account created (signup) or logged in (login)</p>
+<pre><code class="language-json">{
+  &quot;accessToken&quot;: &quot;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...&quot;,
+  &quot;user&quot;: {
+    &quot;id&quot;: &quot;8f14e45f-ea8d-4c3b-9c1a-2b7e0d1a9c11&quot;,
+    &quot;username&quot;: &quot;Murabaa-1837&quot;,
+    &quot;phone&quot;: &quot;+96651234567&quot;
+  }
+}
+</code></pre>
+<p>Store both. Attach <code>accessToken</code> to later requests.</p>
+<p><strong>Errors</strong></p>
+<table>
+<thead>
+<tr>
+<th>HTTP</th>
+<th><code>error</code></th>
+<th>Extra</th>
+<th>UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>400</td>
+<td><code>OTP_INVALID</code></td>
+<td><code>attemptsRemaining</code></td>
+<td>Red digits, “Incorrect code… Send a new code?”</td>
+</tr>
+<tr>
+<td>400</td>
+<td><code>OTP_EXPIRED</code></td>
+<td></td>
+<td>“The code has expired. Send a new code”</td>
+</tr>
+<tr>
+<td>429</td>
+<td><code>OTP_LOCKED</code></td>
+<td><code>lockedUntil</code></td>
+<td>“Too many attempts. Try again in 5 minutes.”</td>
+</tr>
+<tr>
+<td>404</td>
+<td><code>SESSION_NOT_FOUND</code></td>
+<td></td>
+<td>Session missing or already used</td>
+</tr>
+<tr>
+<td>400</td>
+<td>validation</td>
+<td></td>
+<td>Code not 6 digits / bad UUID</td>
+</tr>
+</tbody>
+</table>
+<p>On the last failed attempt the API returns <code>OTP_LOCKED</code> (not <code>OTP_INVALID</code> with 0 remaining).</p>
+<p>Yellow “You have only 3 attempts” can be shown from <code>attemptsRemaining === 3</code> on first OTP screen, or whenever you want a warning; the server always returns remaining on invalid verify.</p>
+<hr />
+<h3>5.6 <code>POST /auth/otp/resend</code></h3>
+<p><strong>Auth:</strong> none  </p>
+<p><strong>Body</strong></p>
+<pre><code class="language-json">{
+  &quot;sessionId&quot;: &quot;a44feb09-4afd-48d6-9300-b465acc18b1c&quot;
+}
+</code></pre>
+<p><strong>Success 201</strong> — same session payload as signup (<code>sessionId</code> unchanged, new <code>expiresAt</code> / <code>resendAvailableAt</code>).</p>
+<p>Disable the Resend control until <code>resendAvailableAt</code>. After expiry of the code, still use this endpoint (not a new signup) unless the session is gone.</p>
+<p><strong>Errors</strong></p>
+<table>
+<thead>
+<tr>
+<th>HTTP</th>
+<th><code>error</code></th>
+<th>Extra</th>
+<th>UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>429</td>
+<td><code>OTP_RESEND_COOLDOWN</code></td>
+<td><code>resendAvailableAt</code></td>
+<td>Keep Resend disabled</td>
+</tr>
+<tr>
+<td>429</td>
+<td><code>OTP_RESEND_LIMIT</code></td>
+<td></td>
+<td>No more resends this session</td>
+</tr>
+<tr>
+<td>429</td>
+<td><code>OTP_LOCKED</code></td>
+<td><code>lockedUntil</code></td>
+<td>Lockout; Resend disabled until then</td>
+</tr>
+<tr>
+<td>404</td>
+<td><code>SESSION_NOT_FOUND</code></td>
+<td></td>
+<td>Start signup/login again</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3>5.7 <code>GET /auth/me</code></h3>
+<p><strong>Auth:</strong> Bearer  </p>
+<p><strong>Success 200</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;8f14e45f-ea8d-4c3b-9c1a-2b7e0d1a9c11&quot;,
+  &quot;username&quot;: &quot;Murabaa-1837&quot;,
+  &quot;phone&quot;: &quot;+96651234567&quot;
+}
+</code></pre>
+<p><strong>Errors:</strong> <code>401</code> if token missing, invalid, expired, or logged out.</p>
+<hr />
+<h3>5.8 <code>POST /auth/logout</code></h3>
+<p><strong>Auth:</strong> Bearer  </p>
+<p><strong>Success 201</strong></p>
+<pre><code class="language-json">{ &quot;ok&quot;: true }
+</code></pre>
+<p>Then delete the token from device storage. Do not reuse it.</p>
+<p><strong>Errors:</strong> <code>401</code></p>
+<hr />
+<h3>5.9 <code>DELETE /auth/account</code></h3>
+<p><strong>Auth:</strong> Bearer  </p>
+<p><strong>Success 200</strong></p>
+<pre><code class="language-json">{ &quot;ok&quot;: true }
+</code></pre>
+<p>Permanent. Confirm in UI first.</p>
+<p><strong>Errors:</strong> <code>401</code></p>
+<hr />
+<h2>6. Suggested client types</h2>
+<pre><code class="language-ts">export type OtpSessionResponse = {
+  sessionId: string;
+  expiresAt: string; // ISO-8601
+  resendAvailableAt: string;
+  attemptsRemaining: number;
+};
+
+export type PublicUser = {
+  id: string;
+  username: string;
+  phone: string;
+};
+
+export type AuthSuccessResponse = {
+  accessToken: string;
+  user: PublicUser;
+};
+
+export type ApiErrorBody = {
+  error?: string;
+  message: string | string[];
+  statusCode?: number;
+  attemptsRemaining?: number;
+  lockedUntil?: string;
+  resendAvailableAt?: string;
+};
+</code></pre>
+<hr />
+<h2>7. Error code catalog (bind UI to these)</h2>
+<table>
+<thead>
+<tr>
+<th><code>error</code></th>
+<th>HTTP</th>
+<th>Extra fields</th>
+<th>Suggested UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>USERNAME_INVALID</code></td>
+<td>400</td>
+<td></td>
+<td>Username rules failed</td>
+</tr>
+<tr>
+<td><code>USERNAME_TAKEN</code></td>
+<td>409</td>
+<td></td>
+<td>Username not unique</td>
+</tr>
+<tr>
+<td><code>PHONE_NOT_REGISTERED</code></td>
+<td>404</td>
+<td></td>
+<td>Login: account does not exist</td>
+</tr>
+<tr>
+<td><code>PHONE_ALREADY_REGISTERED</code></td>
+<td>409</td>
+<td></td>
+<td>Signup: go to login</td>
+</tr>
+<tr>
+<td><code>TERMS_REQUIRED</code></td>
+<td>400</td>
+<td></td>
+<td>Must accept terms</td>
+</tr>
+<tr>
+<td><code>SESSION_NOT_FOUND</code></td>
+<td>404</td>
+<td></td>
+<td>Restart OTP flow</td>
+</tr>
+<tr>
+<td><code>OTP_INVALID</code></td>
+<td>400</td>
+<td><code>attemptsRemaining</code></td>
+<td>Incorrect code</td>
+</tr>
+<tr>
+<td><code>OTP_EXPIRED</code></td>
+<td>400</td>
+<td></td>
+<td>Code expired; resend</td>
+</tr>
+<tr>
+<td><code>OTP_LOCKED</code></td>
+<td>429</td>
+<td><code>lockedUntil</code></td>
+<td>5 minute lock</td>
+</tr>
+<tr>
+<td><code>OTP_RESEND_COOLDOWN</code></td>
+<td>429</td>
+<td><code>resendAvailableAt</code></td>
+<td>Wait to resend</td>
+</tr>
+<tr>
+<td><code>OTP_RESEND_LIMIT</code></td>
+<td>429</td>
+<td></td>
+<td>Max 3 resends</td>
+</tr>
+</tbody>
+</table>
+<p>ISO timestamps are UTC (<code>Z</code>). Convert to local countdown in the UI.</p>
+<hr />
+<h2>8. Integration sequence diagrams</h2>
+<h3>Sign up</h3>
+<pre><code>Client                         API
+  |  GET username/available      |
+  |-----------------------------&gt;|
+  |  { available: true }         |
+  |&lt;-----------------------------|
+  |  POST /auth/signup           |
+  |  { phone, username, terms }  |
+  |-----------------------------&gt;|
+  |  { sessionId, expiresAt… }   |
+  |&lt;-----------------------------|
+  |  POST /auth/otp/verify       |
+  |  { sessionId, code }         |
+  |-----------------------------&gt;|
+  |  { accessToken, user }       |
+  |&lt;-----------------------------|
+  |  GET /auth/me  (Bearer)      |
+  |-----------------------------&gt;|
+</code></pre>
+<h3>Sign in</h3>
+<pre><code>POST /auth/login { phone }
+  → 404 PHONE_NOT_REGISTERED  OR  OTP session
+POST /auth/otp/verify { sessionId, code }
+  → { accessToken, user }
+</code></pre>
+<hr />
+<h2>9. Frontend implementation notes</h2>
+<ol>
+<li><strong>Do not</strong> expect the OTP in the HTTP response. It is sent by SMS (4Jawaly) or logged on the server in development.</li>
+<li>Countdown timers should use <code>expiresAt</code> / <code>resendAvailableAt</code> / <code>lockedUntil</code> from the server, not a hardcoded client clock only.</li>
+<li>After 3 wrong codes, disable Verify and Resend until <code>lockedUntil</code>.</li>
+<li><code>forbidNonWhitelisted</code>: sending <code>countryCode</code> or <code>otp</code> extra keys causes 400 validation errors. Only send documented fields.</li>
+<li>Username availability is <strong>advisory</strong>; signup is the source of truth (<code>USERNAME_TAKEN</code> race is possible).</li>
+<li>Health is optional for the app; useful for debugging.</li>
+<li>Privacy Policy / Terms URLs are <strong>not</strong> served by this API. Render them in-app. You only send <code>acceptedTerms: true</code>.</li>
+<li>Location permission (iOS) is client-side; this API does not accept lat/lng.</li>
+<li>Optional email recovery is <strong>not</strong> implemented.</li>
+</ol>
+<hr />
+<h2>10. Example requests</h2>
+<p><strong>Signup</strong></p>
+<pre><code class="language-http">POST /auth/signup HTTP/1.1
+Host: localhost:3000
+Content-Type: application/json
+
+{&quot;phone&quot;:&quot;+923309890496&quot;,&quot;username&quot;:&quot;MusharafMobeen&quot;,&quot;acceptedTerms&quot;:true}
+</code></pre>
+<p><strong>Verify</strong></p>
+<pre><code class="language-http">POST /auth/otp/verify HTTP/1.1
+Host: localhost:3000
+Content-Type: application/json
+
+{&quot;sessionId&quot;:&quot;a44feb09-4afd-48d6-9300-b465acc18b1c&quot;,&quot;code&quot;:&quot;955641&quot;}
+</code></pre>
+<p><strong>Authenticated</strong></p>
+<pre><code class="language-http">GET /auth/me HTTP/1.1
+Host: localhost:3000
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+</code></pre>
+<hr />
+<h2>11. Out of scope (do not call)</h2>
+<ul>
+<li>No GraphQL, no gRPC, no TCP message patterns</li>
+<li>No password, no email login, no social login</li>
+<li>No refresh-token endpoint (access JWT only)</li>
+<li>No “get OTP” HTTP endpoint</li>
+<li>No profile update / email save in this version</li>
+</ul>
+<hr />
+<p><em>End of Metr User Service frontend integration contract.</em></p>
+</body>
+</html>

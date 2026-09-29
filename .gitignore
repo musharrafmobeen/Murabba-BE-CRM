@@ -1,0 +1,45 @@
+# env
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+
+# nested git repos parked while using the monorepo root (do not delete)
+**/.git.nested-backup/
+**/.git.bak/
+
+# local scratch / build info
+**/Untitled
+**/*.tsbuildinfo
+
+# deps / build
+**/node_modules
+**/dist
+**/build
+
+# logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local uploads
+**/uploads
+
+# tests
+**/coverage
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.cursor/

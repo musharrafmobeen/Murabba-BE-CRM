@@ -1,0 +1,214 @@
+{
+  "info": {
+    "_postman_id": "b8d5f3c2-7e9a-4d12-8f4b-metr-content-service",
+    "name": "Metr Content Service",
+    "description": "Public content + admin CMS. Base URL `{{baseUrl}}`. Admin calls need `x-admin-key`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001" },
+    { "key": "adminKey", "value": "metr-dev-admin-key" },
+    { "key": "aboutId", "value": "" },
+    { "key": "helpPageId", "value": "" },
+    { "key": "helpCategoryId", "value": "" },
+    { "key": "helpItemId", "value": "" },
+    { "key": "versionId", "value": "" },
+    { "key": "contactTypeId", "value": "" },
+    { "key": "languageId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Public",
+      "item": [
+        {
+          "name": "About the App",
+          "request": { "method": "GET", "url": "{{baseUrl}}/about" }
+        },
+        {
+          "name": "Help Center",
+          "request": { "method": "GET", "url": "{{baseUrl}}/help" }
+        },
+        {
+          "name": "App Version",
+          "request": { "method": "GET", "url": "{{baseUrl}}/version" }
+        },
+        {
+          "name": "Languages",
+          "request": { "method": "GET", "url": "{{baseUrl}}/languages" }
+        },
+        {
+          "name": "Contact types",
+          "request": { "method": "GET", "url": "{{baseUrl}}/contact/types" }
+        },
+        {
+          "name": "Submit Contact Us",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+96651234567\",\n  \"email\": \"user@example.com\",\n  \"title\": \"Cannot login\",\n  \"type\": \"ACCOUNT_ISSUE\",\n  \"message\": \"I cannot sign in with my phone number today.\",\n  \"acceptedPrivacy\": true\n}"
+            },
+            "url": "{{baseUrl}}/contact"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List about",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-admin-key", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/admin/about"
+          }
+        },
+        {
+          "name": "Create about",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-admin-key", "value": "{{adminKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appVersion\": \"1.0.0\",\n  \"imageUrl\": null,\n  \"isActive\": true,\n  \"en\": {\n    \"menuLabel\": \"About the App\",\n    \"title\": \"About Murabba\",\n    \"purposeTitle\": \"What is this app?\",\n    \"purpose\": \"Murabba helps you explore what is around you.\",\n    \"featuresTitle\": \"What can you do with it?\",\n    \"features\": [\"Explore\", \"Share\", \"Connect\"],\n    \"missionTitle\": \"Why was it built?\",\n    \"mission\": \"Discover, share, and belong.\"\n  },\n  \"ar\": {\n    \"menuLabel\": \"حول التطبيق\",\n    \"title\": \"حول مربّع\",\n    \"purposeTitle\": \"ما هذا التطبيق؟\",\n    \"purpose\": \"يساعدك مربّع على الاستكشاف.\",\n    \"featuresTitle\": \"ماذا يمكنك أن تفعل به؟\",\n    \"features\": [\"استكشف\", \"شارك\", \"تواصل\"],\n    \"missionTitle\": \"لماذا أُنشئ؟\",\n    \"mission\": \"اكتشف وشارك وانتمِ.\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/admin/about"
+          }
+        },
+        {
+          "name": "Update about",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "x-admin-key", "value": "{{adminKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/admin/about/{{aboutId}}"
+          }
+        },
+        {
+          "name": "Delete about",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "x-admin-key", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/admin/about/{{aboutId}}"
+          }
+        },
+        {
+          "name": "List help pages",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-admin-key", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/admin/help-pages"
+          }
+        },
+        {
+          "name": "List help categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-admin-key", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/admin/help-categories"
+          }
+        },
+        {
+          "name": "Create help category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-admin-key", "value": "{{adminKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"billing\",\n  \"nameEn\": \"Billing\",\n  \"nameAr\": \"الفوترة\",\n  \"sortOrder\": 4\n}"
+            },
+            "url": "{{baseUrl}}/admin/help-categories"
+          }
+        },
+        {
+          "name": "List help items",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-admin-key", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/admin/help-items"
+          }
+        },
+        {
+          "name": "Create help item",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-admin-key", "value": "{{adminKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{helpCategoryId}}\",\n  \"slug\": \"new-question\",\n  \"questionEn\": \"How do I contact support?\",\n  \"answerEn\": \"Use Contact Us from the menu.\",\n  \"questionAr\": \"كيف أتواصل مع الدعم؟\",\n  \"answerAr\": \"استخدم تواصل معنا من القائمة.\"\n}"
+            },
+            "url": "{{baseUrl}}/admin/help-items"
+          }
+        },
+        {
+          "name": "List versions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-admin-key", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/admin/versions"
+          }
+        },
+        {
+          "name": "Create version",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-admin-key", "value": "{{adminKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": \"1.1.0\",\n  \"build\": \"20260928\",\n  \"channel\": \"production\",\n  \"isActive\": true,\n  \"en\": {\n    \"menuLabel\": \"App Version\",\n    \"title\": \"App Version\",\n    \"fallback\": \"Version: Unknown\"\n  },\n  \"ar\": {\n    \"menuLabel\": \"إصدار التطبيق\",\n    \"title\": \"إصدار التطبيق\",\n    \"fallback\": \"الإصدار: غير معروف\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/admin/versions"
+          }
+        },
+        {
+          "name": "List contact types",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-admin-key", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/admin/contact-types"
+          }
+        },
+        {
+          "name": "List language pages",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-admin-key", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/admin/language-pages"
+          }
+        },
+        {
+          "name": "List languages",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-admin-key", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/admin/languages"
+          }
+        }
+      ]
+    }
+  ]
+}

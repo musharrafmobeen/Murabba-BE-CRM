@@ -1,0 +1,2126 @@
+{
+  "info": {
+    "_postman_id": "d0f7b5e4-9a1c-4f34-8b6d-metr-user-and-content",
+    "name": "Metr — User Service + Content Service",
+    "description": "Complete Postman collection for **both** running backends.\n\n| Service | Variable | Local URL | What it is |\n| --- | --- | --- | --- |\n| **User Service** | `{{userBaseUrl}}` | http://localhost:3000 | Auth, OTP, profile, photo, follows, search |\n| **Content Service** | `{{contentBaseUrl}}` | http://localhost:3001 | About, Help, Version, Languages, Contact, admin CMS |\n\n**Setup**\n1. Start user-service on 3000 and content-service on 3001.\n2. Collection variables are already set. Change `adminKey` if your content-service `.env` `ADMIN_API_KEY` is different.\n3. User Service → Auth → Sign up, then copy the 6-digit OTP from the **user-service terminal** into `otpCode`.\n4. Run Verify OTP. `accessToken` and `userId` are saved automatically.\n5. Follows need an advertiser UUID in `advertiserId` (`UPDATE users SET \"isAdvertiser\" = true WHERE id = '…'` — there is no upgrade API).\n\n**Headers**\n- JSON: `Content-Type: application/json`\n- JWT routes: `Authorization: Bearer {{accessToken}}`\n- Admin CMS: `x-admin-key: {{adminKey}}`\n\n**Errors:** `{ \"error\": \"CODE\", \"message\": { \"en\": \"...\", \"ar\": \"...\" } }`\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "userBaseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "contentBaseUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "phone",
+      "value": "+96651234567"
+    },
+    {
+      "key": "username",
+      "value": "Murabaa-1837"
+    },
+    {
+      "key": "sessionId",
+      "value": ""
+    },
+    {
+      "key": "otpCode",
+      "value": "123456"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "advertiserId",
+      "value": ""
+    },
+    {
+      "key": "adminKey",
+      "value": "metr-dev-admin-key"
+    },
+    {
+      "key": "aboutId",
+      "value": ""
+    },
+    {
+      "key": "helpPageId",
+      "value": ""
+    },
+    {
+      "key": "helpCategoryId",
+      "value": ""
+    },
+    {
+      "key": "helpItemId",
+      "value": ""
+    },
+    {
+      "key": "versionId",
+      "value": ""
+    },
+    {
+      "key": "contactTypeId",
+      "value": ""
+    },
+    {
+      "key": "languagePageId",
+      "value": ""
+    },
+    {
+      "key": "languageId",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.response.code || pm.response.code >= 400) { return; }",
+          "var j;",
+          "try { j = pm.response.json(); } catch (e) { return; }",
+          "if (j.sessionId) { pm.collectionVariables.set('sessionId', j.sessionId); }",
+          "if (j.accessToken) { pm.collectionVariables.set('accessToken', j.accessToken); }",
+          "if (j.user && j.user.id) { pm.collectionVariables.set('userId', j.user.id); }",
+          "if (j.id && !j.accessToken && !j.sessionId && !j.status) {",
+          "  var path = String(pm.request.url);",
+          "  if (path.indexOf('/admin/about') !== -1) pm.collectionVariables.set('aboutId', j.id);",
+          "  if (path.indexOf('/admin/help-pages') !== -1) pm.collectionVariables.set('helpPageId', j.id);",
+          "  if (path.indexOf('/admin/help-categories') !== -1) pm.collectionVariables.set('helpCategoryId', j.id);",
+          "  if (path.indexOf('/admin/help-items') !== -1) pm.collectionVariables.set('helpItemId', j.id);",
+          "  if (path.indexOf('/admin/versions') !== -1) pm.collectionVariables.set('versionId', j.id);",
+          "  if (path.indexOf('/admin/contact-types') !== -1) pm.collectionVariables.set('contactTypeId', j.id);",
+          "  if (path.indexOf('/admin/language-pages') !== -1) pm.collectionVariables.set('languagePageId', j.id);",
+          "  if (path.indexOf('/admin/languages') !== -1) pm.collectionVariables.set('languageId', j.id);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "User Service",
+      "description": "http://localhost:3000 — auth, profile, photo, follows, search.\n\nRun Auth → Sign up → paste OTP into `otpCode` → Verify OTP, then Profile / Users & Follows.",
+      "item": [
+        {
+          "name": "Health",
+          "item": [
+            {
+              "name": "GET /health",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/health",
+                "description": "Liveness for user-service."
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/health"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status\": \"ok\",\n  \"service\": \"user-service\",\n  \"timestamp\": \"2026-09-29T06:00:00.000Z\"\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "GET /users/username/available",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/username/available?username={{username}}",
+                "description": "No JWT. `{ available: true | false }`. Invalid format → 400 USERNAME_INVALID."
+              },
+              "response": [
+                {
+                  "name": "Available",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/users/username/available?username=Murabaa-1837"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"available\": true\n}"
+                },
+                {
+                  "name": "Taken",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/users/username/available?username=Murabaa-1837"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"available\": false\n}"
+                }
+              ]
+            },
+            {
+              "name": "POST /auth/signup",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/signup",
+                "description": "Starts OTP. User is created only after verify. Saves `sessionId`. Copy OTP from user-service console into `otpCode`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"username\": \"{{username}}\",\n  \"acceptedTerms\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Signup started', function () {",
+                      "  pm.expect(pm.response.code).to.eql(201);",
+                      "  pm.expect(pm.response.json().sessionId).to.be.a('string');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "response": [
+                {
+                  "name": "OTP sent",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{userBaseUrl}}/auth/signup",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"username\": \"{{username}}\",\n  \"acceptedTerms\": true\n}"
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"sessionId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"expiresAt\": \"2026-09-28T18:02:00.000Z\",\n  \"resendAvailableAt\": \"2026-09-28T18:00:30.000Z\",\n  \"attemptsRemaining\": 3\n}"
+                }
+              ]
+            },
+            {
+              "name": "POST /auth/login",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/login",
+                "description": "OTP for an existing phone. 404 PHONE_NOT_REGISTERED if unknown.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
+                }
+              },
+              "response": [
+                {
+                  "name": "OTP sent",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{userBaseUrl}}/auth/login",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"sessionId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"expiresAt\": \"2026-09-28T18:02:00.000Z\",\n  \"resendAvailableAt\": \"2026-09-28T18:00:30.000Z\",\n  \"attemptsRemaining\": 3\n}"
+                }
+              ]
+            },
+            {
+              "name": "POST /auth/otp/verify",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/otp/verify",
+                "description": "6 digits, 2 min TTL, 3 attempts, then 5 min lock. Saves `accessToken` and `userId`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Verified', function () {",
+                      "  pm.expect(pm.response.code).to.eql(201);",
+                      "  const j = pm.response.json();",
+                      "  pm.expect(j.accessToken).to.be.a('string');",
+                      "  pm.expect(j.user).to.have.property('id');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "response": [
+                {
+                  "name": "Success",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{userBaseUrl}}/auth/otp/verify",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\",\n  \"user\": {\n    \"id\": \"8f14e45f-ea8d-4c3b-9c1a-2b7e0d1a9c11\",\n    \"username\": \"Murabaa-1837\",\n    \"phone\": \"+96651234567\",\n    \"displayName\": null,\n    \"city\": null,\n    \"bio\": null,\n    \"photoUrl\": null,\n    \"isAdvertiser\": false\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "POST /auth/otp/resend",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/otp/resend",
+                "description": "30s cooldown, max 3 resends per session.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sessionId\": \"{{sessionId}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "POST /auth/logout",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{userBaseUrl}}/auth/logout",
+                "description": "JWT. `{ ok: true }`. Token is dead after this.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/auth/logout"
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"ok\": true\n}"
+                }
+              ]
+            },
+            {
+              "name": "DELETE /auth/account",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{userBaseUrl}}/auth/account",
+                "description": "JWT. Permanently deletes the user.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/auth/account"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"ok\": true\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Profile",
+          "item": [
+            {
+              "name": "GET /auth/me",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/auth/me",
+                "description": "JWT. Current user + follow stats. Prefix `photoUrl` with userBaseUrl to load the image.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/auth/me"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"id\": \"8f14e45f-ea8d-4c3b-9c1a-2b7e0d1a9c11\",\n  \"username\": \"Murabaa-1837\",\n  \"phone\": \"+96651234567\",\n  \"displayName\": \"Mohammed Ahmed\",\n  \"city\": \"Riyadh\",\n  \"bio\": \"Real estate expert helping you find your dream home.\",\n  \"photoUrl\": \"/uploads/profiles/8f14e45f-ea8d-4c3b-9c1a-2b7e0d1a9c11.jpg\",\n  \"isAdvertiser\": false,\n  \"followersCount\": 0,\n  \"followingCount\": 3,\n  \"showFollowers\": false,\n  \"canBeFollowed\": false\n}"
+                }
+              ]
+            },
+            {
+              "name": "PATCH /auth/me",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/me",
+                "description": "Any subset of displayName, city, bio. Empty string clears the field. Max 80 / 80 / 500.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"displayName\": \"Mohammed Ahmed\",\n  \"city\": \"Riyadh\",\n  \"bio\": \"Real estate expert helping you find your dream home.\"\n}"
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "POST /auth/me/photo",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{userBaseUrl}}/auth/me/photo",
+                "description": "multipart/form-data. Returns the public user. File is at GET {{userBaseUrl}}{{photoUrl}}.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "photo",
+                      "type": "file",
+                      "src": [],
+                      "description": "Field name MUST be photo. JPEG, PNG, or WebP. Max 5 MB."
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GET /uploads/:photoPath",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/uploads/profiles/example.jpg",
+                "description": "Static file. No JWT. Use the `photoUrl` returned by Me / profile (already starts with /uploads/)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Users & Follows",
+          "item": [
+            {
+              "name": "GET /users/search",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/search?q=ali&limit=20&offset=0",
+                "description": "JWT. Advertisers only. Empty q → `{ items: [], total: 0 }`. limit default 20 max 50.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/users/search?q=ali"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"items\": [\n    {\n      \"id\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n      \"username\": \"agent1\",\n      \"displayName\": \"Ali Ahmed\",\n      \"photoUrl\": null,\n      \"isAdvertiser\": true,\n      \"followingCount\": 2100,\n      \"isFollowing\": true,\n      \"canFollow\": false\n    }\n  ],\n  \"total\": 1\n}"
+                }
+              ]
+            },
+            {
+              "name": "GET /users/suggested",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/suggested?limit=20&offset=0",
+                "description": "JWT. Advertisers the viewer does not already follow.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GET /users/:id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/{{advertiserId}}",
+                "description": "JWT. Put an advertiser UUID in `advertiserId`. No phone in this payload. Use canFollow / isFollowing / showFollowers for UI.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "Advertiser",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/users/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"id\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n  \"username\": \"agent1\",\n  \"displayName\": \"Ali Ahmed\",\n  \"city\": \"Riyadh\",\n  \"bio\": null,\n  \"photoUrl\": null,\n  \"isAdvertiser\": true,\n  \"isSelf\": false,\n  \"isFollowing\": false,\n  \"canFollow\": true,\n  \"followersCount\": 12,\n  \"followingCount\": 4,\n  \"showFollowers\": true,\n  \"canBeFollowed\": true\n}"
+                }
+              ]
+            },
+            {
+              "name": "GET /users/:id/followers",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/{{advertiserId}}/followers?limit=20&offset=0",
+                "description": "JWT. Normal users: `{ items: [], total: 0, showFollowers: false }`.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/users/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/followers"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"items\": [\n    {\n      \"id\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n      \"username\": \"agent1\",\n      \"displayName\": \"Ali Ahmed\",\n      \"photoUrl\": null,\n      \"isAdvertiser\": true,\n      \"followingCount\": 2100,\n      \"isFollowing\": true,\n      \"canFollow\": false\n    }\n  ],\n  \"total\": 1,\n  \"showFollowers\": true\n}"
+                }
+              ]
+            },
+            {
+              "name": "GET /users/:id/following",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/{{advertiserId}}/following?limit=20&offset=0",
+                "description": "JWT. Advertisers this user follows.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "POST /users/:id/follow",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/{{advertiserId}}/follow",
+                "description": "JWT. 403 FOLLOW_NOT_ALLOWED if not advertiser. 400 FOLLOW_SELF. Idempotent. Returns profile.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "DELETE /users/:id/follow",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/{{advertiserId}}/follow",
+                "description": "JWT. Idempotent. Returns profile.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error cases",
+          "item": [
+            {
+              "name": "Username invalid",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/username/available?username=Mu",
+                "description": "400 USERNAME_INVALID"
+              },
+              "response": [
+                {
+                  "name": "Invalid",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/users/username/available?username=Mu"
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"error\": \"USERNAME_INVALID\",\n  \"message\": {\n    \"en\": \"Username must be 3-20 characters: letters, numbers, underscores, or hyphens.\",\n    \"ar\": \"يجب أن يتكون اسم المستخدم من 3 إلى 20 حرفاً: أحرف وأرقام وشرطة سفلية أو شرطة فقط.\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Sign up — phone already registered",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/signup",
+                "description": "409 PHONE_ALREADY_REGISTERED",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"username\": \"OtherUser-1\",\n  \"acceptedTerms\": true\n}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Conflict",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/auth/signup"
+                  },
+                  "status": "Conflict",
+                  "code": 409,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"error\": \"PHONE_ALREADY_REGISTERED\",\n  \"message\": {\n    \"en\": \"This account is already registered.\",\n    \"ar\": \"هذا الحساب مسجّل بالفعل.\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Sign up — terms not accepted",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/signup",
+                "description": "400 TERMS_REQUIRED",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"username\": \"{{username}}\",\n  \"acceptedTerms\": false\n}"
+                }
+              }
+            },
+            {
+              "name": "Sign up — username taken",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/signup",
+                "description": "409 USERNAME_TAKEN (use a new phone so it gets past the phone check)",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"+966500000001\",\n  \"username\": \"{{username}}\",\n  \"acceptedTerms\": true\n}"
+                }
+              }
+            },
+            {
+              "name": "Login — phone not registered",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/login",
+                "description": "404 PHONE_NOT_REGISTERED",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"+966500000099\"\n}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Not found",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/auth/login"
+                  },
+                  "status": "Not Found",
+                  "code": 404,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"error\": \"PHONE_NOT_REGISTERED\",\n  \"message\": {\n    \"en\": \"This account is not previously registered.\",\n    \"ar\": \"هذا الحساب غير مسجّل مسبقاً.\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Verify OTP — incorrect code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/otp/verify",
+                "description": "400 OTP_INVALID + attemptsRemaining. After 3 fails: 429 OTP_LOCKED + lockedUntil.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"code\": \"000000\"\n}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Incorrect",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/auth/otp/verify"
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"error\": \"OTP_INVALID\",\n  \"message\": {\n    \"en\": \"Incorrect code. Please check the digits and try again.\",\n    \"ar\": \"رمز التحقق غير صحيح. يرجى مراجعة الأرقام والمحاولة مرة أخرى.\"\n  },\n  \"attemptsRemaining\": 2\n}"
+                },
+                {
+                  "name": "Locked",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": "{{userBaseUrl}}/auth/otp/verify"
+                  },
+                  "status": "Too Many Requests",
+                  "code": 429,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"error\": \"OTP_LOCKED\",\n  \"message\": {\n    \"en\": \"Too many attempts. Try again in 5 minutes.\",\n    \"ar\": \"محاولات كثيرة جداً. حاول مرة أخرى خلال 5 دقائق.\"\n  },\n  \"lockedUntil\": \"2026-09-28T18:05:00.000Z\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "Verify OTP — expired",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/otp/verify",
+                "description": "Wait more than 2 minutes after send. 400 OTP_EXPIRED.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Resend OTP — cooldown",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{userBaseUrl}}/auth/otp/resend",
+                "description": "Call immediately after signup. 429 OTP_RESEND_COOLDOWN.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sessionId\": \"{{sessionId}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Me — missing token",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{userBaseUrl}}/auth/me",
+                "description": "401 Unauthorized (Nest default, not bilingual).",
+                "auth": {
+                  "type": "noauth"
+                }
+              }
+            },
+            {
+              "name": "Follow self",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/{{userId}}/follow",
+                "description": "400 FOLLOW_SELF",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Follow a normal user",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{userBaseUrl}}/users/{{userId}}/follow",
+                "description": "If userId is not an advertiser: 403 FOLLOW_NOT_ALLOWED.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Content Service",
+      "description": "http://localhost:3001 — public hamburger content + admin CMS (`x-admin-key`).",
+      "item": [
+        {
+          "name": "Health",
+          "item": [
+            {
+              "name": "GET /health",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{contentBaseUrl}}/health",
+                "description": "Liveness for content-service."
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{contentBaseUrl}}/health"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status\": \"ok\",\n  \"service\": \"content-service\",\n  \"timestamp\": \"2026-09-29T06:00:00.000Z\"\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Public (app / hamburger)",
+          "item": [
+            {
+              "name": "GET /about",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{contentBaseUrl}}/about",
+                "description": "No JWT. Pick `en` or `ar` on the client."
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{contentBaseUrl}}/about"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"appVersion\": \"1.0.0\",\n  \"imageUrl\": null,\n  \"en\": {\n    \"menuLabel\": \"About the App\",\n    \"title\": \"About Murabba\",\n    \"purposeTitle\": \"What is this app?\",\n    \"purpose\": \"Murabba helps you explore what’s around you, share your moments, and connect with people in a simple, trusted way.\",\n    \"featuresTitle\": \"What can you do with it?\",\n    \"features\": [\n      \"Explore places and content near you\",\n      \"Share your thoughts and moments\",\n      \"Connect with others in the community\"\n    ],\n    \"missionTitle\": \"Why was it built?\",\n    \"mission\": \"Murabba was built so first-time visitors can quickly see the value of the app: discover, share, and belong — without noise or complexity.\"\n  },\n  \"ar\": {\n    \"menuLabel\": \"حول التطبيق\",\n    \"title\": \"حول مربّع\",\n    \"purposeTitle\": \"ما هذا التطبيق؟\",\n    \"purpose\": \"يساعدك مربّع على استكشاف ما حولك، ومشاركة لحظاتك، والتواصل مع الآخرين بطريقة بسيطة وموثوقة.\",\n    \"featuresTitle\": \"ماذا يمكنك أن تفعل به؟\",\n    \"features\": [\n      \"استكشف الأماكن والمحتوى من حولك\",\n      \"شارك أفكارك ولحظاتك\",\n      \"تواصل مع الآخرين في المجتمع\"\n    ],\n    \"missionTitle\": \"لماذا أُنشئ؟\",\n    \"mission\": \"أُنشئ مربّع ليتمكن الزائر لأول مرة من فهم قيمة التطبيق بسرعة: اكتشف، شارك، وانتمِ — بدون تعقيد.\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "GET /help",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{contentBaseUrl}}/help",
+                "description": "No JWT. Category/item `id` slugs match across en/ar. Search is frontend-only."
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{contentBaseUrl}}/help"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"en\": {\n    \"menuLabel\": \"Help Center\",\n    \"title\": \"Help Center\",\n    \"intro\": \"Find quick answers to common questions about signing in, your account, and using Murabba.\",\n    \"emptyFallback\": \"Unable to load help content. Please try again later.\",\n    \"contactCta\": \"Didn’t find your answer? Contact Us\",\n    \"categories\": [\n      {\n        \"id\": \"login\",\n        \"name\": \"Login\",\n        \"items\": [\n          {\n            \"id\": \"otp-not-received\",\n            \"question\": \"Why didn’t I receive my OTP?\",\n            \"answer\": \"Check that your mobile number is in international format (for example +9665…). The code is valid for 2 minutes.\"\n          }\n        ]\n      }\n    ]\n  },\n  \"ar\": {\n    \"menuLabel\": \"مركز المساعدة\",\n    \"title\": \"مركز المساعدة\",\n    \"intro\": \"اعثر على إجابات سريعة للأسئلة الشائعة حول تسجيل الدخول وحسابك واستخدام مربّع.\",\n    \"emptyFallback\": \"تعذر تحميل محتوى المساعدة. يرجى المحاولة لاحقاً.\",\n    \"contactCta\": \"لم تجد إجابتك؟ تواصل معنا\",\n    \"categories\": [\n      {\n        \"id\": \"login\",\n        \"name\": \"تسجيل الدخول\",\n        \"items\": [\n          {\n            \"id\": \"otp-not-received\",\n            \"question\": \"لماذا لم يصل رمز التحقق؟\",\n            \"answer\": \"تأكد أن رقم الجوال بالصيغة الدولية (مثل +9665…). الرمز صالح لمدة دقيقتين.\"\n          }\n        ]\n      }\n    ]\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "GET /version",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{contentBaseUrl}}/version",
+                "description": "No JWT. Active DB row, else APP_VERSION / APP_BUILD / APP_CHANNEL from content-service .env."
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{contentBaseUrl}}/version"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"version\": \"1.0.0\",\n  \"build\": \"20250707\",\n  \"channel\": \"production\",\n  \"display\": \"v1.0.0 | Build 20250707\",\n  \"en\": {\n    \"menuLabel\": \"App Version\",\n    \"title\": \"App Version\",\n    \"fallback\": \"Version: Unknown\"\n  },\n  \"ar\": {\n    \"menuLabel\": \"إصدار التطبيق\",\n    \"title\": \"إصدار التطبيق\",\n    \"fallback\": \"الإصدار: غير معروف\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "GET /languages",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{contentBaseUrl}}/languages",
+                "description": "No JWT. Persist the chosen `code` on the device. Do not POST it to the API."
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{contentBaseUrl}}/languages"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"defaultMode\": \"system\",\n  \"fallbackCode\": \"en\",\n  \"en\": {\n    \"menuLabel\": \"Language\",\n    \"title\": \"Choose language\"\n  },\n  \"ar\": {\n    \"menuLabel\": \"اللغة\",\n    \"title\": \"اختر اللغة\"\n  },\n  \"languages\": [\n    {\n      \"code\": \"ar\",\n      \"name\": {\n        \"en\": \"Arabic\",\n        \"ar\": \"العربية\"\n      },\n      \"nativeName\": \"العربية\",\n      \"flag\": \"🇸🇦\",\n      \"direction\": \"rtl\"\n    },\n    {\n      \"code\": \"en\",\n      \"name\": {\n        \"en\": \"English\",\n        \"ar\": \"الإنجليزية\"\n      },\n      \"nativeName\": \"English\",\n      \"flag\": \"🇺🇸\",\n      \"direction\": \"ltr\"\n    }\n  ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "GET /contact/types",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{contentBaseUrl}}/contact/types",
+                "description": "No JWT. Use `value` as POST /contact `type`."
+              },
+              "response": [
+                {
+                  "name": "OK",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{contentBaseUrl}}/contact/types"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"types\": [\n    {\n      \"value\": \"FEEDBACK\",\n      \"label\": {\n        \"en\": \"Feedback\",\n        \"ar\": \"ملاحظات\"\n      }\n    },\n    {\n      \"value\": \"BUG_REPORT\",\n      \"label\": {\n        \"en\": \"Bug Report\",\n        \"ar\": \"بلاغ عن خلل\"\n      }\n    },\n    {\n      \"value\": \"FEATURE_REQUEST\",\n      \"label\": {\n        \"en\": \"Feature Request\",\n        \"ar\": \"طلب ميزة\"\n      }\n    },\n    {\n      \"value\": \"ACCOUNT_ISSUE\",\n      \"label\": {\n        \"en\": \"Account Issue\",\n        \"ar\": \"مشكلة في الحساب\"\n      }\n    },\n    {\n      \"value\": \"OTHER\",\n      \"label\": {\n        \"en\": \"Other\",\n        \"ar\": \"أخرى\"\n      }\n    }\n  ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "POST /contact",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{contentBaseUrl}}/contact",
+                "description": "Phone or email (or both). Title 3–120. Message 20–256. Privacy required. Max 3 submits / 15 minutes.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"email\": \"user@example.com\",\n  \"title\": \"Cannot login\",\n  \"type\": \"ACCOUNT_ISSUE\",\n  \"message\": \"I cannot sign in with my phone number today.\",\n  \"acceptedPrivacy\": true\n}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Received",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/contact",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"email\": \"user@example.com\",\n  \"title\": \"Cannot login\",\n  \"type\": \"ACCOUNT_ISSUE\",\n  \"message\": \"I cannot sign in with my phone number today.\",\n  \"acceptedPrivacy\": true\n}"
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"id\": \"c0a80100-0000-4000-8000-000000000001\",\n  \"message\": {\n    \"en\": \"Thank you. Your message has been received.\",\n    \"ar\": \"شكراً لك. تم استلام رسالتك.\"\n  },\n  \"followUp\": {\n    \"en\": \"Our support team will get back to you soon, if needed.\",\n    \"ar\": \"سيتواصل معك فريق الدعم قريباً إذا لزم الأمر.\"\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Admin CMS",
+          "description": "All of these need header `x-admin-key: {{adminKey}}` (content-service `.env` ADMIN_API_KEY). Not for the mobile app.",
+          "item": [
+            {
+              "name": "About pages",
+              "item": [
+                {
+                  "name": "List about",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/about",
+                    "description": "Admin. Requires x-admin-key."
+                  }
+                },
+                {
+                  "name": "Get about",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/about/{{aboutId}}"
+                  }
+                },
+                {
+                  "name": "Create about",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/about",
+                    "description": "Saves the created `id` onto the matching collection variable.",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"appVersion\": \"1.0.0\",\n  \"imageUrl\": null,\n  \"isActive\": true,\n  \"en\": {\n    \"menuLabel\": \"About the App\",\n    \"title\": \"About Murabba\",\n    \"purposeTitle\": \"What is this app?\",\n    \"purpose\": \"Murabba helps you explore what’s around you, share your moments, and connect with people in a simple, trusted way.\",\n    \"featuresTitle\": \"What can you do with it?\",\n    \"features\": [\n      \"Explore places and content near you\",\n      \"Share your thoughts and moments\",\n      \"Connect with others in the community\"\n    ],\n    \"missionTitle\": \"Why was it built?\",\n    \"mission\": \"Murabba was built so first-time visitors can quickly see the value of the app: discover, share, and belong — without noise or complexity.\"\n  },\n  \"ar\": {\n    \"menuLabel\": \"حول التطبيق\",\n    \"title\": \"حول مربّع\",\n    \"purposeTitle\": \"ما هذا التطبيق؟\",\n    \"purpose\": \"يساعدك مربّع على استكشاف ما حولك، ومشاركة لحظاتك، والتواصل مع الآخرين بطريقة بسيطة وموثوقة.\",\n    \"featuresTitle\": \"ماذا يمكنك أن تفعل به؟\",\n    \"features\": [\n      \"استكشف الأماكن والمحتوى من حولك\",\n      \"شارك أفكارك ولحظاتك\",\n      \"تواصل مع الآخرين في المجتمع\"\n    ],\n    \"missionTitle\": \"لماذا أُنشئ؟\",\n    \"mission\": \"أُنشئ مربّع ليتمكن الزائر لأول مرة من فهم قيمة التطبيق بسرعة: اكتشف، شارك، وانتمِ — بدون تعقيد.\"\n  }\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Update about",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/about/{{aboutId}}",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"isActive\": true\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete about",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/about/{{aboutId}}"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Help pages",
+              "item": [
+                {
+                  "name": "List help page",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-pages",
+                    "description": "Admin. Requires x-admin-key."
+                  }
+                },
+                {
+                  "name": "Get help page",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-pages/{{helpPageId}}"
+                  }
+                },
+                {
+                  "name": "Create help page",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-pages",
+                    "description": "Saves the created `id` onto the matching collection variable.",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"isActive\": true,\n  \"en\": {\n    \"menuLabel\": \"Help Center\",\n    \"title\": \"Help Center\",\n    \"intro\": \"Find answers to common questions.\",\n    \"emptyFallback\": \"Help is unavailable right now.\",\n    \"contactCta\": \"Contact Us\"\n  },\n  \"ar\": {\n    \"menuLabel\": \"مركز المساعدة\",\n    \"title\": \"مركز المساعدة\",\n    \"intro\": \"اعثر على إجابات للأسئلة الشائعة.\",\n    \"emptyFallback\": \"المساعدة غير متاحة حالياً.\",\n    \"contactCta\": \"تواصل معنا\"\n  }\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Update help page",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-pages/{{helpPageId}}",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"isActive\": true\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete help page",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-pages/{{helpPageId}}"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Help categories",
+              "item": [
+                {
+                  "name": "List help categories",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-categories"
+                  }
+                },
+                {
+                  "name": "Get help category",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-categories/{{helpCategoryId}}"
+                  }
+                },
+                {
+                  "name": "Create help category",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-categories",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"slug\": \"billing\",\n  \"nameEn\": \"Billing\",\n  \"nameAr\": \"الفوترة\",\n  \"sortOrder\": 4\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Update help category",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-categories/{{helpCategoryId}}",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"sortOrder\": 5\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete help category",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-categories/{{helpCategoryId}}"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Help items",
+              "item": [
+                {
+                  "name": "List help items",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-items"
+                  }
+                },
+                {
+                  "name": "Get help item",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-items/{{helpItemId}}"
+                  }
+                },
+                {
+                  "name": "Create help item",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-items",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"categoryId\": \"{{helpCategoryId}}\",\n  \"slug\": \"new-question\",\n  \"questionEn\": \"How do I contact support?\",\n  \"answerEn\": \"Use Contact Us from the menu.\",\n  \"questionAr\": \"كيف أتواصل مع الدعم؟\",\n  \"answerAr\": \"استخدم تواصل معنا من القائمة.\"\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Update help item",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-items/{{helpItemId}}",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"sortOrder\": 1\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete help item",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/help-items/{{helpItemId}}"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Versions",
+              "item": [
+                {
+                  "name": "List version",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/versions",
+                    "description": "Admin. Requires x-admin-key."
+                  }
+                },
+                {
+                  "name": "Get version",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/versions/{{versionId}}"
+                  }
+                },
+                {
+                  "name": "Create version",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/versions",
+                    "description": "Saves the created `id` onto the matching collection variable.",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"version\": \"1.1.0\",\n  \"build\": \"20260928\",\n  \"channel\": \"production\",\n  \"isActive\": true,\n  \"en\": {\n    \"menuLabel\": \"App Version\",\n    \"title\": \"App Version\",\n    \"fallback\": \"Version: Unknown\"\n  },\n  \"ar\": {\n    \"menuLabel\": \"إصدار التطبيق\",\n    \"title\": \"إصدار التطبيق\",\n    \"fallback\": \"الإصدار: غير معروف\"\n  }\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Update version",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/versions/{{versionId}}",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"isActive\": true\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete version",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/versions/{{versionId}}"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contact types",
+              "item": [
+                {
+                  "name": "List contact types",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/contact-types"
+                  }
+                },
+                {
+                  "name": "Get contact type",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/contact-types/{{contactTypeId}}"
+                  }
+                },
+                {
+                  "name": "Create contact type",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/contact-types",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"code\": \"PARTNERSHIP\",\n  \"labelEn\": \"Partnership\",\n  \"labelAr\": \"شراكة\",\n  \"sortOrder\": 5\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Update contact type",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/contact-types/{{contactTypeId}}",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"sortOrder\": 6\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete contact type",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/contact-types/{{contactTypeId}}"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Language pages",
+              "item": [
+                {
+                  "name": "List language page",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/language-pages",
+                    "description": "Admin. Requires x-admin-key."
+                  }
+                },
+                {
+                  "name": "Get language page",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/language-pages/{{languagePageId}}"
+                  }
+                },
+                {
+                  "name": "Create language page",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/language-pages",
+                    "description": "Saves the created `id` onto the matching collection variable.",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fallbackCode\": \"en\",\n  \"isActive\": true,\n  \"en\": {\n    \"menuLabel\": \"Language\",\n    \"title\": \"Choose language\"\n  },\n  \"ar\": {\n    \"menuLabel\": \"اللغة\",\n    \"title\": \"اختر اللغة\"\n  }\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Update language page",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/language-pages/{{languagePageId}}",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"isActive\": true\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete language page",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/language-pages/{{languagePageId}}"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Languages",
+              "item": [
+                {
+                  "name": "List languages",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/languages"
+                  }
+                },
+                {
+                  "name": "Get language",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/languages/{{languageId}}"
+                  }
+                },
+                {
+                  "name": "Create language",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/languages",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"code\": \"fr\",\n  \"nameEn\": \"French\",\n  \"nameAr\": \"الفرنسية\",\n  \"nativeName\": \"Français\",\n  \"flag\": \"🇫🇷\",\n  \"direction\": \"ltr\",\n  \"sortOrder\": 3,\n  \"isEnabled\": true\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Update language",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/languages/{{languageId}}",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"isEnabled\": true\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete language",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "x-admin-key",
+                        "value": "{{adminKey}}"
+                      }
+                    ],
+                    "url": "{{contentBaseUrl}}/admin/languages/{{languageId}}"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Error cases",
+          "item": [
+            {
+              "name": "Contact — missing phone and email",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{contentBaseUrl}}/contact",
+                "description": "400 CONTACT_PHONE_OR_EMAIL_REQUIRED",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Cannot login\",\n  \"type\": \"ACCOUNT_ISSUE\",\n  \"message\": \"I cannot sign in with my phone number today.\",\n  \"acceptedPrivacy\": true\n}"
+                }
+              }
+            },
+            {
+              "name": "Contact — privacy not accepted",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{contentBaseUrl}}/contact",
+                "description": "400 PRIVACY_REQUIRED",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"title\": \"Cannot login\",\n  \"type\": \"ACCOUNT_ISSUE\",\n  \"message\": \"I cannot sign in with my phone number today.\",\n  \"acceptedPrivacy\": false\n}"
+                }
+              }
+            },
+            {
+              "name": "Contact — message too short",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{contentBaseUrl}}/contact",
+                "description": "400 MESSAGE_TOO_SHORT",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"title\": \"Cannot login\",\n  \"type\": \"ACCOUNT_ISSUE\",\n  \"message\": \"Too short\",\n  \"acceptedPrivacy\": true\n}"
+                }
+              }
+            },
+            {
+              "name": "Contact — invalid type",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{contentBaseUrl}}/contact",
+                "description": "400 CONTACT_TYPE_INVALID",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"title\": \"Cannot login\",\n  \"type\": \"NOT_A_TYPE\",\n  \"message\": \"I cannot sign in with my phone number today.\",\n  \"acceptedPrivacy\": true\n}"
+                }
+              }
+            },
+            {
+              "name": "Admin — missing key",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{contentBaseUrl}}/admin/about",
+                "description": "401 ADMIN_UNAUTHORIZED"
+              },
+              "response": [
+                {
+                  "name": "Unauthorized",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{contentBaseUrl}}/admin/about"
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"error\": \"ADMIN_UNAUTHORIZED\",\n  \"message\": {\n    \"en\": \"Admin access is required.\",\n    \"ar\": \"يلزم صلاحية المشرف.\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Admin — not found",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-admin-key",
+                    "value": "{{adminKey}}"
+                  }
+                ],
+                "url": "{{contentBaseUrl}}/admin/about/00000000-0000-4000-8000-000000000000",
+                "description": "404 CONTENT_NOT_FOUND"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
