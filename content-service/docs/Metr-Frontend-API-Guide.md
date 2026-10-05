@@ -84,7 +84,7 @@ Admin CMS (header `x-admin-key`): collection + `GET/PATCH/DELETE /:id` on `/admi
 **Implemented**
 
 - Sign up / log in with OTP (6 digits, 2 min, 3 tries, 5 min lockout, 30s resend, max 3 resends)
-- Username required, unique, 3–20 `[A-Za-z0-9_-]+`
+- Username optional on signup (unique if provided, 3–20 `[A-Za-z0-9_-]+`); if omitted, backend auto-generates `user-####`
 - Phone E.164 (`+9665…`)
 - JWT session, logout, delete account
 - My profile header: photo, display name, username, city, bio
@@ -145,6 +145,8 @@ No auth.
 }
 ```
 
+`username` is **optional**. If omitted or blank, the server generates `user-####` (e.g. `user-4821`). If provided, it must be unique and valid.
+
 **201**
 
 ```json
@@ -159,7 +161,7 @@ No auth.
 | Code | HTTP | When |
 | --- | --- | --- |
 | `TERMS_REQUIRED` | 400 | `acceptedTerms` is not true |
-| `USERNAME_INVALID` | 400 | bad username |
+| `USERNAME_INVALID` | 400 | username provided but invalid |
 | `USERNAME_TAKEN` | 409 | username exists |
 | `PHONE_ALREADY_REGISTERED` | 409 | phone already has an account |
 | `OTP_LOCKED` | 429 | this phone is locked; body includes `lockedUntil` |

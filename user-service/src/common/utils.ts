@@ -27,6 +27,10 @@ export function isValidUsername(username: string): boolean {
   );
 }
 
+export function generateUsername(): string {
+  return `user-${randomInt(1000, 10000)}`;
+}
+
 export function generateOtp(): string {
   return randomInt(0, 10 ** OTP_LENGTH)
     .toString()

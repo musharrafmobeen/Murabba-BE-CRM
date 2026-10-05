@@ -1,4 +1,4 @@
-import { IsBoolean, IsNotEmpty, IsString, IsUUID, Matches } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 import { PHONE_PATTERN } from '../common/constants.js';
 
 export class PhoneDto {
@@ -8,9 +8,9 @@ export class PhoneDto {
 }
 
 export class SignupDto extends PhoneDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  username: string;
+  username?: string;
 
   @IsBoolean()
   acceptedTerms: boolean;

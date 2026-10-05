@@ -14,6 +14,7 @@ import { AppError, ErrorCode } from '../common/errors.js';
 import {
   addMs,
   generateOtp,
+  generateUsername,
   hashOtp,
   isValidUsername,
   normalizePhone,
@@ -190,8 +191,11 @@ export class AuthService {
     };
   }
 
-  private async resolveUsername(username: string): Promise<string> {
-    const value = username.trim();
+  private async resolveUsername(username?: string): Promise<string> {
+    const value = username?.trim();
+    if (!value) {
+      return this.uniqueGeneratedUsername();
+    }
     if (!isValidUsername(value)) {
       throw new AppError(ErrorCode.USERNAME_INVALID, HttpStatus.BAD_REQUEST);
     }
@@ -199,6 +203,16 @@ export class AuthService {
       throw new AppError(ErrorCode.USERNAME_TAKEN, HttpStatus.CONFLICT);
     }
     return value;
+  }
+
+  private async uniqueGeneratedUsername(): Promise<string> {
+    for (let i = 0; i < 10; i += 1) {
+      const candidate = generateUsername();
+      if (!(await this.users.findByUsername(candidate))) {
+        return candidate;
+      }
+    }
+    return `${generateUsername()}${Date.now().toString().slice(-3)}`;
   }
 
   private async requireSession(id: string): Promise<OtpSession> {

@@ -1,5 +1,6 @@
 import {
   generateOtp,
+  generateUsername,
   hashOtp,
   isValidPhone,
   isValidUsername,
@@ -19,6 +20,12 @@ describe('utils', () => {
     expect(isValidUsername('Murabaa-1837')).toBe(true);
     expect(isValidUsername('Mu')).toBe(false);
     expect(isValidUsername('bad name')).toBe(false);
+  });
+
+  it('generates usernames in user-#### form', () => {
+    const username = generateUsername();
+    expect(username).toMatch(/^user-\d{4}$/);
+    expect(isValidUsername(username)).toBe(true);
   });
 
   it('strips plus for 4Jawaly numbers', () => {

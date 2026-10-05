@@ -123,13 +123,65 @@ describe('AuthService', () => {
     });
   });
 
-  it('rejects signup when username is missing or invalid', async () => {
+  it('auto-generates a username when signup omits it', async () => {
+    users.findByPhone.mockResolvedValue(null);
+    users.findByUsername.mockResolvedValue(null);
+
+    const result = await service.signup({
+      phone: PHONE,
+      acceptedTerms: true,
+    });
+
+    expect(result.sessionId).toBe('session-1');
+    expect(sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purpose: 'signup',
+        phone: PHONE,
+        username: expect.stringMatching(/^user-\d{4}/),
+      }),
+    );
+  });
+
+  it('auto-generates a username when signup sends blank username', async () => {
+    users.findByPhone.mockResolvedValue(null);
+    users.findByUsername.mockResolvedValue(null);
+
+    await service.signup({
+      phone: PHONE,
+      username: '   ',
+      acceptedTerms: true,
+    });
+
+    expect(sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        username: expect.stringMatching(/^user-\d{4}/),
+      }),
+    );
+  });
+
+  it('rejects signup when provided username is invalid', async () => {
     users.findByPhone.mockResolvedValue(null);
 
     await expect(
-      service.signup({ phone: PHONE, username: '  ', acceptedTerms: true }),
+      service.signup({ phone: PHONE, username: 'Mu', acceptedTerms: true }),
     ).rejects.toMatchObject({
       response: { error: ErrorCode.USERNAME_INVALID },
+    });
+  });
+
+  it('rejects signup when provided username is taken', async () => {
+    users.findByPhone.mockResolvedValue(null);
+    users.findByUsername.mockResolvedValue({ id: 'other' });
+
+    await expect(
+      service.signup({
+        phone: PHONE,
+        username: 'Murabaa-1837',
+        acceptedTerms: true,
+      }),
+    ).rejects.toMatchObject({
+      status: HttpStatus.CONFLICT,
+      response: { error: ErrorCode.USERNAME_TAKEN },
     });
   });
 
