@@ -3,6 +3,10 @@
     "en": "Enter a mobile number or an email address.",
     "ar": "أدخل رقم جوال أو بريداً إلكترونياً."
   },
+  "CONTACT_PHONE_REQUIRED": {
+    "en": "Enter your mobile number to continue.",
+    "ar": "أدخل رقم جوالك للمتابعة."
+  },
   "PHONE_INVALID": {
     "en": "Phone number must be in E.164 format.",
     "ar": "يجب أن يكون رقم الجوال بتنسيق E.164."
@@ -42,6 +46,38 @@
   "CONTACT_RECEIVED_FOLLOW_UP": {
     "en": "Our support team will get back to you soon, if needed.",
     "ar": "سيتواصل معك فريق الدعم قريباً إذا لزم الأمر."
+  },
+  "RECOVERY_OTP_REQUIRED": {
+    "en": "Verify your mobile number with the OTP before submitting.",
+    "ar": "تحقق من رقم جوالك برمز التحقق قبل الإرسال."
+  },
+  "RECOVERY_OTP_NOT_VERIFIED": {
+    "en": "Mobile number is not verified. Complete OTP verification first.",
+    "ar": "رقم الجوال غير موثّق. أكمل التحقق برمز OTP أولاً."
+  },
+  "SESSION_NOT_FOUND": {
+    "en": "Verification session was not found.",
+    "ar": "لم يتم العثور على جلسة التحقق."
+  },
+  "OTP_INVALID": {
+    "en": "Incorrect OTP. Please try again.",
+    "ar": "رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى."
+  },
+  "OTP_EXPIRED": {
+    "en": "OTP expired. Please request a new one.",
+    "ar": "انتهت صلاحية رمز التحقق. يرجى طلب رمز جديد."
+  },
+  "OTP_LOCKED": {
+    "en": "Too many attempts. Try again in 5 minutes.",
+    "ar": "محاولات كثيرة جداً. حاول مرة أخرى خلال 5 دقائق."
+  },
+  "OTP_RESEND_COOLDOWN": {
+    "en": "Please wait before requesting a new code.",
+    "ar": "يرجى الانتظار قبل طلب رمز جديد."
+  },
+  "OTP_RESEND_LIMIT": {
+    "en": "No more resend attempts are allowed for this session.",
+    "ar": "لا يمكن إعادة إرسال الرمز مرة أخرى لهذه الجلسة."
   },
   "ADMIN_UNAUTHORIZED": {
     "en": "Admin access is required.",

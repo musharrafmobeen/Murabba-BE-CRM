@@ -2,6 +2,8 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
 import {
+  ACCOUNT_RECOVERY_TITLE,
+  ACCOUNT_RECOVERY_TYPE,
   CONTACT_RATE_LIMIT,
   CONTACT_RATE_WINDOW_MS,
   EMAIL_PATTERN,
@@ -18,6 +20,7 @@ import { ContactSubmission } from './contact-submission.entity.js';
 import { ContactType } from './contact-type.entity.js';
 import type { CreateContactTypeDto, UpdateContactTypeDto } from './contact-type.dto.js';
 import type { CreateContactDto } from './contact.dto.js';
+import { RecoveryOtpService } from './recovery-otp.service.js';
 
 @Injectable()
 export class ContactService {
@@ -26,6 +29,7 @@ export class ContactService {
     private readonly submissions: Repository<ContactSubmission>,
     @InjectRepository(ContactType)
     private readonly typesRepo: Repository<ContactType>,
+    private readonly recoveryOtp: RecoveryOtpService,
   ) {}
 
   async types() {
@@ -85,27 +89,44 @@ export class ContactService {
       throw new AppError(ErrorCode.PRIVACY_REQUIRED, HttpStatus.BAD_REQUEST);
     }
 
+    const type = dto.type?.trim().toUpperCase() ?? '';
+    const isRecovery = type === ACCOUNT_RECOVERY_TYPE;
     const phone = dto.phone?.trim() ? normalizePhone(dto.phone) : null;
     const email = dto.email?.trim() ? dto.email.trim().toLowerCase() : null;
-    const title = dto.title?.trim() ?? '';
     const message = dto.message?.trim() ?? '';
-    const type = dto.type?.trim().toUpperCase() ?? '';
+    const title = isRecovery
+      ? (dto.title?.trim() || ACCOUNT_RECOVERY_TITLE)
+      : (dto.title?.trim() ?? '');
 
-    if (!phone && !email) {
-      throw new AppError(
-        ErrorCode.CONTACT_PHONE_OR_EMAIL_REQUIRED,
-        HttpStatus.BAD_REQUEST,
-      );
+    if (isRecovery) {
+      if (!phone) {
+        throw new AppError(ErrorCode.CONTACT_PHONE_REQUIRED, HttpStatus.BAD_REQUEST);
+      }
+      if (!PHONE_PATTERN.test(phone)) {
+        throw new AppError(ErrorCode.PHONE_INVALID, HttpStatus.BAD_REQUEST);
+      }
+      if (email && !EMAIL_PATTERN.test(email)) {
+        throw new AppError(ErrorCode.EMAIL_INVALID, HttpStatus.BAD_REQUEST);
+      }
+      await this.recoveryOtp.consumeVerified(dto.sessionId ?? '', phone);
+    } else {
+      if (!phone && !email) {
+        throw new AppError(
+          ErrorCode.CONTACT_PHONE_OR_EMAIL_REQUIRED,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (phone && !PHONE_PATTERN.test(phone)) {
+        throw new AppError(ErrorCode.PHONE_INVALID, HttpStatus.BAD_REQUEST);
+      }
+      if (email && !EMAIL_PATTERN.test(email)) {
+        throw new AppError(ErrorCode.EMAIL_INVALID, HttpStatus.BAD_REQUEST);
+      }
+      if (title.length < TITLE_MIN || title.length > TITLE_MAX) {
+        throw new AppError(ErrorCode.TITLE_INVALID, HttpStatus.BAD_REQUEST);
+      }
     }
-    if (phone && !PHONE_PATTERN.test(phone)) {
-      throw new AppError(ErrorCode.PHONE_INVALID, HttpStatus.BAD_REQUEST);
-    }
-    if (email && !EMAIL_PATTERN.test(email)) {
-      throw new AppError(ErrorCode.EMAIL_INVALID, HttpStatus.BAD_REQUEST);
-    }
-    if (title.length < TITLE_MIN || title.length > TITLE_MAX) {
-      throw new AppError(ErrorCode.TITLE_INVALID, HttpStatus.BAD_REQUEST);
-    }
+
     const typeRow = await this.typesRepo.findOneBy({ code: type });
     if (!typeRow) {
       throw new AppError(ErrorCode.CONTACT_TYPE_INVALID, HttpStatus.BAD_REQUEST);
@@ -152,7 +173,6 @@ export class ContactService {
           : { phone, createdAt: MoreThan(since) }
         : { email: email as string, createdAt: MoreThan(since) },
     });
-
     if (count >= CONTACT_RATE_LIMIT) {
       throw new AppError(
         ErrorCode.CONTACT_RATE_LIMITED,

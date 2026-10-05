@@ -1,8 +1,10 @@
-# Metr / Murabba — Frontend API Guide
+# Metr / Murabba — Frontend API Guide (user-service + content-service)
 
 **Audience:** mobile/web frontend  
-**Date:** 28 September 2026  
-**Postman:** import `postman/Metr-API.postman_collection.json` (one collection for both services)
+**Date:** 29 September 2026  
+**Covers both backends:** `user-service` (port 3000) and `content-service` (port 3001)  
+**Postman:** import `postman/Metr-API.postman_collection.json` (one collection for both services)  
+**Also available as PDF:** `docs/Metr-Frontend-API-Guide.pdf`
 
 **Base URLs (local):**
 
@@ -68,6 +70,9 @@ Pagination: `limit` default **20**, max **50**; `offset` default **0**. `:id` is
 | App Version | GET | `/version` |
 | Languages | GET | `/languages` |
 | Contact types | GET | `/contact/types` |
+| Recovery OTP start | POST | `/contact/recovery/otp/start` |
+| Recovery OTP verify | POST | `/contact/recovery/otp/verify` |
+| Recovery OTP resend | POST | `/contact/recovery/otp/resend` |
 | Submit Contact Us | POST | `/contact` |
 
 Admin CMS (header `x-admin-key`): collection + `GET/PATCH/DELETE /:id` on `/admin/about`, `/admin/help-pages`, `/admin/help-categories`, `/admin/help-items`, `/admin/versions`, `/admin/contact-types`, `/admin/language-pages`, `/admin/languages`.
@@ -87,6 +92,7 @@ Admin CMS (header `x-admin-key`): collection + `GET/PATCH/DELETE /:id` on `/admi
 - Language catalog (Arabic RTL / English LTR) — **choice is stored on the device**, not the server
 - About, Help Center, App version
 - Contact Us form
+- Recover Deleted Account (guest): phone OTP then `ACCOUNT_RECOVERY` contact ticket
 - Follow advertisers only; followers/following lists; search/suggestions = advertisers only
 - Admin CRUD for About / Help / Version / Languages / contact types
 
@@ -95,7 +101,9 @@ Admin CMS (header `x-admin-key`): collection + `GET/PATCH/DELETE /:id` on `/admi
 - Liked videos tab / unlike
 - Following **posts** feed
 - Upgrade-to-advertiser API (`isAdvertiser` is DB-only for now)
-- Recovery / change-mobile / CAPTCHA
+- Automated account restore (support reviews recovery tickets manually)
+- Soft-delete / 30-day eligibility API (support policy only)
+- Change-mobile / CAPTCHA
 
 ---
 
@@ -403,9 +411,9 @@ Footer can still use native Info.plist / Gradle when offline. If the API fails, 
 
 ### Contact Us
 
-`GET /contact/types` → `{ "types": [ { "value": "ACCOUNT_ISSUE", "label": { "en": "Account Issue", "ar": "..." } } ] }`
+`GET /contact/types` → includes `ACCOUNT_RECOVERY` (`Account Recovery` / `استرجاع الحساب`) plus feedback, bug, feature, account issue, other.
 
-`POST /contact`
+`POST /contact` (normal types)
 
 ```json
 {
@@ -421,6 +429,50 @@ Footer can still use native Info.plist / Gradle when offline. If the API fails, 
 Phone **or** email (or both). Title 3–120. Message 20–256. Max 3 submits / 15 min per phone or email.
 
 **201** `{ "id": "uuid", "message": { "en", "ar" }, "followUp": { "en", "ar" } }`
+
+### Recover Deleted Account (guest only — frontend hides this when logged in)
+
+```
+1. POST /contact/recovery/otp/start   { "phone": "+96651234567" }
+2. User enters 6-digit OTP (console if 4Jawaly empty on content-service)
+3. POST /contact/recovery/otp/verify { "sessionId", "code" }
+4. User writes message
+5. POST /contact with type ACCOUNT_RECOVERY + same phone + sessionId + message
+```
+
+OTP rules match auth: **2 min** TTL, **3** attempts → **5 min** lockout, resend after **30s**, max **3** resends.
+
+**Start / resend 201**
+
+```json
+{
+  "sessionId": "uuid",
+  "expiresAt": "...",
+  "resendAvailableAt": "...",
+  "attemptsRemaining": 3
+}
+```
+
+**Verify 201** `{ "sessionId": "uuid", "verified": true, "phone": "+96651234567" }`
+
+**Submit recovery**
+
+```json
+{
+  "type": "ACCOUNT_RECOVERY",
+  "phone": "+96651234567",
+  "sessionId": "uuid-from-verify",
+  "message": "I deleted my account by mistake and want it back please.",
+  "acceptedPrivacy": true
+}
+```
+
+- `title` optional (defaults to `Account Recovery`)
+- `email` optional
+- Phone + verified `sessionId` + message required
+- Support reviews manually — there is **no** auto-restore API
+
+UI: lock the type dropdown to Account Recovery; show Submitting… then thank-you from `message` / `followUp`.
 
 ---
 
@@ -571,6 +623,17 @@ curl -X POST http://localhost:3001/contact \
   -H "Content-Type: application/json" \
   -d "{\"phone\":\"+96651234567\",\"title\":\"Cannot login\",\"type\":\"ACCOUNT_ISSUE\",\"message\":\"I cannot sign in with my phone number today.\",\"acceptedPrivacy\":true}"
 
+# Recover deleted account (guest)
+curl -X POST http://localhost:3001/contact/recovery/otp/start \
+  -H "Content-Type: application/json" \
+  -d "{\"phone\":\"+96651234567\"}"
+curl -X POST http://localhost:3001/contact/recovery/otp/verify \
+  -H "Content-Type: application/json" \
+  -d "{\"sessionId\":\"SESSION_ID\",\"code\":\"123456\"}"
+curl -X POST http://localhost:3001/contact \
+  -H "Content-Type: application/json" \
+  -d "{\"type\":\"ACCOUNT_RECOVERY\",\"phone\":\"+96651234567\",\"sessionId\":\"SESSION_ID\",\"message\":\"I deleted my account by mistake and want it back please.\",\"acceptedPrivacy\":true}"
+
 # Profile + follow
 curl http://localhost:3000/users/USER_ID -H "Authorization: Bearer ACCESS_TOKEN"
 curl http://localhost:3000/users/USER_ID/following -H "Authorization: Bearer ACCESS_TOKEN"
@@ -581,6 +644,13 @@ curl "http://localhost:3000/users/search?q=ali" -H "Authorization: Bearer ACCESS
 # Logout / delete
 curl -X POST http://localhost:3000/auth/logout -H "Authorization: Bearer ACCESS_TOKEN"
 curl -X DELETE http://localhost:3000/auth/account -H "Authorization: Bearer ACCESS_TOKEN"
+
+# Admin CMS examples (content-service — not for the mobile app)
+curl http://localhost:3001/admin/about -H "x-admin-key: metr-dev-admin-key"
+curl http://localhost:3001/admin/help-categories -H "x-admin-key: metr-dev-admin-key"
+curl http://localhost:3001/admin/versions -H "x-admin-key: metr-dev-admin-key"
+curl http://localhost:3001/admin/languages -H "x-admin-key: metr-dev-admin-key"
+curl http://localhost:3001/admin/contact-types -H "x-admin-key: metr-dev-admin-key"
 ```
 
 ---
@@ -633,8 +703,16 @@ Public GETs read the **active** About / Help / Version row. If version is missin
 | Code | HTTP |
 | --- | --- |
 | `CONTACT_PHONE_OR_EMAIL_REQUIRED` | 400 |
+| `CONTACT_PHONE_REQUIRED` | 400 |
 | `PHONE_INVALID` / `EMAIL_INVALID` / `TITLE_INVALID` / `CONTACT_TYPE_INVALID` | 400 |
 | `MESSAGE_TOO_SHORT` / `MESSAGE_TOO_LONG` / `PRIVACY_REQUIRED` | 400 |
+| `RECOVERY_OTP_REQUIRED` / `RECOVERY_OTP_NOT_VERIFIED` | 400 |
+| `SESSION_NOT_FOUND` | 404 |
+| `OTP_INVALID` | 400 + `attemptsRemaining` |
+| `OTP_EXPIRED` | 400 |
+| `OTP_LOCKED` | 429 + `lockedUntil` |
+| `OTP_RESEND_COOLDOWN` | 429 + `resendAvailableAt` |
+| `OTP_RESEND_LIMIT` | 429 |
 | `CONTACT_RATE_LIMITED` | 429 |
 | `ADMIN_UNAUTHORIZED` | 401 |
 | `CONTENT_NOT_FOUND` | 404 |

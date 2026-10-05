@@ -1,6 +1,7 @@
 import { AboutPage } from '../about/about-page.entity.js';
 import { ContactSubmission } from '../contact/contact-submission.entity.js';
 import { ContactType } from '../contact/contact-type.entity.js';
+import { RecoveryOtpSession } from '../contact/recovery-otp-session.entity.js';
 import { HelpCategory } from '../help/help-category.entity.js';
 import { HelpItem } from '../help/help-item.entity.js';
 import { HelpPage } from '../help/help-page.entity.js';
@@ -21,6 +22,7 @@ export function typeormOptions() {
     entities: [
       ContactSubmission,
       ContactType,
+      RecoveryOtpSession,
       AboutPage,
       HelpPage,
       HelpCategory,

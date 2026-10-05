@@ -1226,28 +1226,47 @@
                 "method": "GET",
                 "header": [],
                 "url": "{{contentBaseUrl}}/contact/types",
-                "description": "No JWT. Use `value` as POST /contact `type`."
-              },
-              "response": [
-                {
-                  "name": "OK",
-                  "originalRequest": {
-                    "method": "GET",
-                    "header": [],
-                    "url": "{{contentBaseUrl}}/contact/types"
-                  },
-                  "status": "OK",
-                  "code": 200,
-                  "_postman_previewlanguage": "json",
-                  "header": [
-                    {
-                      "key": "Content-Type",
-                      "value": "application/json"
-                    }
-                  ],
-                  "body": "{\n  \"types\": [\n    {\n      \"value\": \"FEEDBACK\",\n      \"label\": {\n        \"en\": \"Feedback\",\n        \"ar\": \"ملاحظات\"\n      }\n    },\n    {\n      \"value\": \"BUG_REPORT\",\n      \"label\": {\n        \"en\": \"Bug Report\",\n        \"ar\": \"بلاغ عن خلل\"\n      }\n    },\n    {\n      \"value\": \"FEATURE_REQUEST\",\n      \"label\": {\n        \"en\": \"Feature Request\",\n        \"ar\": \"طلب ميزة\"\n      }\n    },\n    {\n      \"value\": \"ACCOUNT_ISSUE\",\n      \"label\": {\n        \"en\": \"Account Issue\",\n        \"ar\": \"مشكلة في الحساب\"\n      }\n    },\n    {\n      \"value\": \"OTHER\",\n      \"label\": {\n        \"en\": \"Other\",\n        \"ar\": \"أخرى\"\n      }\n    }\n  ]\n}"
+                "description": "No JWT. Use `value` as POST /contact `type`. Includes ACCOUNT_RECOVERY."
+              }
+            },
+            {
+              "name": "Recovery OTP start",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{contentBaseUrl}}/contact/recovery/otp/start",
+                "description": "Guest recover-account flow. Saves sessionId. Copy OTP from content-service console when 4Jawaly is empty.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
                 }
-              ]
+              }
+            },
+            {
+              "name": "Recovery OTP verify",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{contentBaseUrl}}/contact/recovery/otp/verify",
+                "description": "6 digits, 2 min TTL, 3 attempts, then 5 min lockout.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Recovery OTP resend",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{contentBaseUrl}}/contact/recovery/otp/resend",
+                "description": "30s cooldown, max 3 resends.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sessionId\": \"{{sessionId}}\"\n}"
+                }
+              }
             },
             {
               "name": "POST /contact",
@@ -1265,36 +1284,20 @@
                   "mode": "raw",
                   "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"email\": \"user@example.com\",\n  \"title\": \"Cannot login\",\n  \"type\": \"ACCOUNT_ISSUE\",\n  \"message\": \"I cannot sign in with my phone number today.\",\n  \"acceptedPrivacy\": true\n}"
                 }
-              },
-              "response": [
-                {
-                  "name": "Received",
-                  "originalRequest": {
-                    "method": "POST",
-                    "header": [
-                      {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                      }
-                    ],
-                    "url": "{{contentBaseUrl}}/contact",
-                    "body": {
-                      "mode": "raw",
-                      "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"email\": \"user@example.com\",\n  \"title\": \"Cannot login\",\n  \"type\": \"ACCOUNT_ISSUE\",\n  \"message\": \"I cannot sign in with my phone number today.\",\n  \"acceptedPrivacy\": true\n}"
-                    }
-                  },
-                  "status": "Created",
-                  "code": 201,
-                  "_postman_previewlanguage": "json",
-                  "header": [
-                    {
-                      "key": "Content-Type",
-                      "value": "application/json"
-                    }
-                  ],
-                  "body": "{\n  \"id\": \"c0a80100-0000-4000-8000-000000000001\",\n  \"message\": {\n    \"en\": \"Thank you. Your message has been received.\",\n    \"ar\": \"شكراً لك. تم استلام رسالتك.\"\n  },\n  \"followUp\": {\n    \"en\": \"Our support team will get back to you soon, if needed.\",\n    \"ar\": \"سيتواصل معك فريق الدعم قريباً إذا لزم الأمر.\"\n  }\n}"
+              }
+            },
+            {
+              "name": "POST /contact (Account Recovery)",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": "{{contentBaseUrl}}/contact",
+                "description": "Requires verified recovery OTP sessionId for the same phone. Title defaults to Account Recovery.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"ACCOUNT_RECOVERY\",\n  \"phone\": \"{{phone}}\",\n  \"sessionId\": \"{{sessionId}}\",\n  \"message\": \"I deleted my account by mistake and want it back please.\",\n  \"acceptedPrivacy\": true\n}"
                 }
-              ]
+              }
             }
           ]
         },

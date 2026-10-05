@@ -1,6 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 import { ContactService } from './contact.service.js';
 import { ErrorCode } from '../common/errors.js';
+import { hashOtp } from '../common/utils.js';
 
 describe('ContactService', () => {
   const submissions = {
@@ -17,7 +18,15 @@ describe('ContactService', () => {
     remove: vi.fn(),
   };
 
-  const service = new ContactService(submissions as never, typesRepo as never);
+  const recoveryOtp = {
+    consumeVerified: vi.fn(),
+  };
+
+  const service = new ContactService(
+    submissions as never,
+    typesRepo as never,
+    recoveryOtp as never,
+  );
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -41,7 +50,14 @@ describe('ContactService', () => {
         sortOrder: 3,
       },
       { code: 'OTHER', labelEn: 'Other', labelAr: 'أخرى', sortOrder: 4 },
+      {
+        code: 'ACCOUNT_RECOVERY',
+        labelEn: 'Account Recovery',
+        labelAr: 'استرجاع الحساب',
+        sortOrder: 5,
+      },
     ]);
+    recoveryOtp.consumeVerified.mockResolvedValue({ id: 'otp-1' });
   });
 
   const valid = {
@@ -60,6 +76,7 @@ describe('ContactService', () => {
     expect(result.message.en).toContain('Thank you');
     expect(result.message.ar.length).toBeGreaterThan(0);
     expect(submissions.save).toHaveBeenCalled();
+    expect(recoveryOtp.consumeVerified).not.toHaveBeenCalled();
   });
 
   it('requires phone or email', async () => {
@@ -104,10 +121,10 @@ describe('ContactService', () => {
 
   it('returns bilingual type labels from the table', async () => {
     const { types } = await service.types();
-    expect(types).toHaveLength(5);
-    expect(types[0]).toEqual({
-      value: 'FEEDBACK',
-      label: { en: 'Feedback', ar: 'ملاحظات' },
+    expect(types).toHaveLength(6);
+    expect(types[5]).toEqual({
+      value: 'ACCOUNT_RECOVERY',
+      label: { en: 'Account Recovery', ar: 'استرجاع الحساب' },
     });
   });
 
@@ -119,5 +136,49 @@ describe('ContactService', () => {
     });
     expect(row.code).toBe('BILLING');
     expect(typesRepo.save).toHaveBeenCalled();
+  });
+
+  it('submits account recovery after OTP consume', async () => {
+    const result = await service.create({
+      type: 'ACCOUNT_RECOVERY',
+      phone: '+96651234567',
+      message: 'I deleted my account by mistake and want it back.',
+      acceptedPrivacy: true,
+      sessionId: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    });
+
+    expect(result.id).toBe('ticket-1');
+    expect(recoveryOtp.consumeVerified).toHaveBeenCalledWith(
+      '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+      '+96651234567',
+    );
+    expect(submissions.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ACCOUNT_RECOVERY',
+        title: 'Account Recovery',
+        phone: '+96651234567',
+      }),
+    );
+  });
+
+  it('requires phone for account recovery', async () => {
+    await expect(
+      service.create({
+        type: 'ACCOUNT_RECOVERY',
+        message: 'I deleted my account by mistake and want it back.',
+        acceptedPrivacy: true,
+        sessionId: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+      }),
+    ).rejects.toMatchObject({
+      response: { error: ErrorCode.CONTACT_PHONE_REQUIRED },
+    });
+  });
+});
+
+describe('RecoveryOtpService', () => {
+  it('hashes OTP deterministically for matching', () => {
+    const secret = 'test-secret';
+    expect(hashOtp('123456', secret)).toBe(hashOtp('123456', secret));
+    expect(hashOtp('123456', secret)).not.toBe(hashOtp('000000', secret));
   });
 });

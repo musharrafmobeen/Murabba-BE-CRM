@@ -59,6 +59,22 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   APP_CHANNEL?: string;
+
+  @IsOptional()
+  @IsString()
+  OTP_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  JAWALY_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  JAWALY_API_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  JAWALY_SENDER?: string;
 }
 
 export function validate(
@@ -79,6 +95,10 @@ export function validate(
       APP_VERSION: config.APP_VERSION ?? '',
       APP_BUILD: config.APP_BUILD ?? '',
       APP_CHANNEL: config.APP_CHANNEL ?? 'production',
+      OTP_SECRET: config.OTP_SECRET ?? '',
+      JAWALY_API_KEY: config.JAWALY_API_KEY ?? '',
+      JAWALY_API_SECRET: config.JAWALY_API_SECRET ?? '',
+      JAWALY_SENDER: config.JAWALY_SENDER ?? '',
     },
     { enableImplicitConversion: true },
   );
